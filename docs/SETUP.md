@@ -59,7 +59,38 @@ Edit `config.json` to customize:
 
 All settings have defaults — you can start with just keywords and locations.
 
-### 3. Initialize the journal
+### 3. Configure resume design
+
+```bash
+cp templates/theme.template.json theme.json
+```
+
+Edit `theme.json` to customize the resume appearance:
+
+| Setting | Description | Example |
+|---------|-------------|---------|
+| `fonts.name` | Name font family and size | `{"family": "Helvetica-Bold", "size": 16}` |
+| `fonts.section_header` | Section header font | `{"family": "Helvetica-Bold", "size": 11}` |
+| `fonts.body` | Body text font | `{"family": "Helvetica", "size": 10.5}` |
+| `colors.name` | Name text color (hex) | `"#2c3e50"` |
+| `colors.rule_primary` | Header horizontal rule color | `"#2c3e50"` |
+| `colors.rule_section` | Section divider color | `"#bdc3c7"` |
+| `layout.margin_left` | Left margin (inches) | `0.75` |
+| `layout.margin_top` | Top margin (inches) | `1.05` |
+| `layout.header_name_y` | Name Y position on page | `10.55` |
+| `layout.spacer_between_sections` | Space between sections (pts) | `3` |
+| `layout.spacer_between_jobs` | Space between jobs (pts) | `4` |
+| `strengths.columns` | Number of columns for strengths | `2` |
+| `strengths.bullet_char` | Bullet character for strengths | `"•"` |
+| `bullets.char` | Bullet character for highlights | `"–"` |
+| `bullets.indent` | Bullet indent (pts) | `14` |
+| `bullets.max_words` | Max words per bullet | `25` |
+| `contact_info.line1` | First line of contact info | `"City, State · (xxx) xxx-xxxx · email"` |
+| `contact_info.line2` | Second line (optional) | `"linkedin.com/in/profile"` |
+
+All design settings have built-in defaults — the resume generates correctly even without `theme.json`.
+
+### 4. Initialize the journal
 
 ```bash
 python3 scripts/journal.py --init
@@ -67,7 +98,7 @@ python3 scripts/journal.py --init
 
 Creates `journal.xlsx` with 4 sheets: Jobs, Applications, Resume Versions, Reference.
 
-### 4. Run your first search
+### 5. Run your first search
 
 ```bash
 # Browser-based LinkedIn search (reads keywords + locations from config.json)
@@ -80,7 +111,7 @@ python3 scripts/journal.py --add output/linkedin_extract_today.json
 python3 scripts/run_scoring.py
 ```
 
-### 5. Generate tailored resumes
+### 6. Generate tailored resumes
 
 ```bash
 # Prepare tailoring input for high-priority jobs
@@ -90,7 +121,9 @@ python3 scripts/run_scoring.py
 python3 scripts/generate_pdf.py output/tailoring_results.json
 ```
 
-### 6. Set up daily automation (cron)
+PDFs are styled according to `theme.json` — fonts, colors, margins, spacing, bullet styles.
+
+### 7. Set up daily automation (cron)
 
 Using Hermes cron:
 ```
@@ -101,17 +134,17 @@ The cron job reads `config.json` for keywords and locations automatically.
 
 ## Pipeline Scripts
 
-| Script | Purpose | Reads config.json |
-|--------|---------|-------------------|
-| `search_linkedin.py` | Browser-based LinkedIn job search | ✅ keywords, locations |
-| `journal.py` | Journal management (init, add, status) | ✅ journal path |
-| `run_scoring.py` | Fetch descriptions + calculate all scores | ✅ priority thresholds |
-| `match_score.py` | Match score algorithm | ✅ location, thresholds |
-| `ats_score.py` | ATS keyword overlap algorithm | — |
-| `interview_prob.py` | Interview probability algorithm | ✅ preferred location |
-| `generate_pdf.py` | PDF generation with quality gate | ✅ output dir |
-| `quality_gate.py` | Technical quality scoring (Gate 1) | ✅ quality threshold |
-| `validate_tailoring.py` | Structural validation + auto-fix | — |
+| Script | Purpose | Reads config.json | Reads theme.json |
+|--------|---------|-------------------|-------------------|
+| `search_linkedin.py` | Browser-based LinkedIn job search | ✅ keywords, locations | — |
+| `journal.py` | Journal management (init, add, status) | ✅ journal path | — |
+| `run_scoring.py` | Fetch descriptions + calculate all scores | ✅ priority thresholds | — |
+| `match_score.py` | Match score algorithm | ✅ location, thresholds | — |
+| `ats_score.py` | ATS keyword overlap algorithm | — | — |
+| `interview_prob.py` | Interview probability algorithm | ✅ preferred location | — |
+| `generate_pdf.py` | PDF generation with quality gate | ✅ output dir | ✅ all design |
+| `quality_gate.py` | Technical quality scoring (Gate 1) | ✅ quality threshold | — |
+| `validate_tailoring.py` | Structural validation + auto-fix | — | — |
 
 ## Quality Gates
 
@@ -127,4 +160,12 @@ Only resumes passing both gates get PDFs generated.
 
 ## Configuration Reference
 
-See `templates/config.template.json` for all available settings with comments.
+| File | Purpose |
+|------|---------|
+| `config.json` | Search keywords, locations, scoring thresholds, quality gate settings |
+| `theme.json` | Resume fonts, colors, margins, spacing, bullet styles, contact info |
+| `templates/MASTER_PROFILE.template.md` | Template for your career profile |
+| `templates/tailoring_prompt_template.md` | Prompt template for LLM resume tailoring |
+| `templates/review_prompt_template.md` | Prompt template for LLM human review |
+| `templates/config.template.json` | Config file with all settings documented |
+| `templates/theme.template.json` | Theme file with all design options documented |
