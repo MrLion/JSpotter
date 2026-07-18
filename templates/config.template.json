@@ -4,50 +4,51 @@
     "locations": [
       {
         "name": "Greater Boston",
-        "url": "https://www.linkedin.com/jobs/search/?keywords={keywords}&location=Greater+Boston"
+        "linkedin_filter": "Greater Boston"
       },
       {
         "name": "Remote USA",
-        "url": "https://www.linkedin.com/jobs/search/?keywords={keywords}&location=United+States&f_WT=2"
+        "linkedin_filter": "United States",
+        "remote_only": true
       }
     ],
-    "max_results_per_search": 70
+    "max_results_per_search": 70,
+    "results_file": "output/linkedin_extract_today.json"
   },
   "scoring": {
     "priority_thresholds": {
       "high": 80,
-      "medium": 65,
-      "low": 0
+      "medium": 65
     },
-    "match_score_weights": {
-      "domain_match": 40,
-      "skill_match": 20,
-      "seniority_fit": 15,
-      "years_requirement": 10,
-      "location_fit": 10,
-      "entrepreneurial_fit": 5
+    "domain_weights": {
+      "AI/ML": 8,
+      "Healthcare": 12,
+      "Finance": 8,
+      "Enterprise": 4,
+      "Cybersecurity": 8,
+      "E-commerce": 6,
+      "Infrastructure": 8,
+      "Mobile": 4
     },
-    "ats_score": {
-      "keyword_categories": [
-        "product_management",
-        "ai_ml",
-        "healthcare",
-        "methodology",
-        "technical",
-        "data_analytics",
-        "leadership"
-      ]
-    }
+    "candidate_domains": ["AI/ML", "Healthcare", "Finance", "Enterprise"],
+    "location_preferences": {
+      "exact_match": 10,
+      "remote": 8,
+      "other_us": 3
+    },
+    "preferred_location": "Boston"
   },
   "resume_tailoring": {
-    "bullet_formula": "verb + product/workflow/platform + scope + measurable result + by/through method",
-    "max_bullet_words": 25,
+    "bullet_max_words": 25,
     "quality_gate_threshold": 75,
     "human_review_threshold": 70,
-    "max_concurrent_subagents": 3
+    "max_highlights": 4,
+    "max_bullets_per_highlight": 5
   },
-  "cron": {
-    "schedule": "0 9 * * *",
-    "deliver_to": "telegram:[YOUR_CHAT_ID]"
-  }
+  "journal": {
+    "path": "journal.xlsx",
+    "sheets": ["Jobs", "Applications", "Resume Versions", "Reference"]
+  },
+  "output_dir": "output",
+  "resume_dir": "resume/tailored"
 }

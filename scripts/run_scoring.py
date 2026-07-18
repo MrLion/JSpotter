@@ -199,10 +199,19 @@ def main():
         match_score, match_details = calculate_match_score(job, desc, profile)
         prob = calculate_interview_prob(match_score, ats_score, job["title"], desc, job["location"])
 
-        # Determine priority
-        if match_score >= 80:
+        # Determine priority — read thresholds from config
+        import json as _json
+        try:
+            with open("config.json") as _f:
+                _cfg = _json.load(_f)
+            _high_thresh = _cfg.get("scoring", {}).get("priority_thresholds", {}).get("high", 80)
+            _med_thresh = _cfg.get("scoring", {}).get("priority_thresholds", {}).get("medium", 65)
+        except:
+            _high_thresh, _med_thresh = 80, 65
+
+        if match_score >= _high_thresh:
             priority = "High"
-        elif match_score >= 65:
+        elif match_score >= _med_thresh:
             priority = "Medium"
         else:
             priority = "Low"
@@ -262,9 +271,9 @@ def main():
             priorities["Low"] += 1
             continue
         ms, _ = calculate_match_score(job, desc, profile)
-        if ms >= 80:
+        if ms >= _high_thresh:
             priorities["High"] += 1
-        elif ms >= 65:
+        elif ms >= _med_thresh:
             priorities["Medium"] += 1
         else:
             priorities["Low"] += 1

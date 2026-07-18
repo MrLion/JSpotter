@@ -230,14 +230,19 @@ def score_years_requirement(desc_lower):
         return 2  # 16+ years — stretch
 
 
-def score_location(location_lower):
-    """Score location fit (10 pts max)."""
-    if "boston" in location_lower or ", ma" in location_lower or "mass" in location_lower:
+def score_location(location_lower, preferred_location=None):
+    """Score location fit (10 pts max). Reads preferred location from config."""
+    if preferred_location is None:
+        preferred_location = "Boston"
+    
+    pref_lower = preferred_location.lower()
+    pref_parts = pref_lower.split()
+    
+    # Check for preferred location match
+    if any(part in location_lower for part in pref_parts) or ", ma" in location_lower:
         return 10
     elif "remote" in location_lower or "united states" in location_lower:
         return 8
-    elif any(state in location_lower for state in [", ca", ", ny", ", wa", ", tx", ", il", ", fl"]):
-        return 3
     else:
         return 3  # default for US locations
 
@@ -367,10 +372,19 @@ def main():
     avg = sum(r[0] for r in results) / len(results)
     print(f"\nAverage: {avg:.1f}")
 
-    # Priority breakdown
-    high = sum(1 for r in results if r[0] >= 80)
-    med = sum(1 for r in results if 65 <= r[0] < 80)
-    low = sum(1 for r in results if r[0] < 65)
+    # Priority breakdown — read thresholds from config
+    import json as _json
+    try:
+        with open("config.json") as _f:
+            _cfg = _json.load(_f)
+        _high_thresh = _cfg.get("scoring", {}).get("priority_thresholds", {}).get("high", 80)
+        _med_thresh = _cfg.get("scoring", {}).get("priority_thresholds", {}).get("medium", 65)
+    except:
+        _high_thresh, _med_thresh = 80, 65
+
+    high = sum(1 for r in results if r[0] >= _high_thresh)
+    med = sum(1 for r in results if _med_thresh <= r[0] < _high_thresh)
+    low = sum(1 for r in results if r[0] < _med_thresh)
     print(f"Priority: High={high} | Medium={med} | Low={low}")
 
 

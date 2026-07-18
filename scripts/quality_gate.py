@@ -260,6 +260,13 @@ def main():
         sys.exit(1)
     
     threshold = 75
+    # Read from config if available
+    try:
+        with open("config.json") as f:
+            cfg = json.load(f)
+        threshold = cfg.get("resume_tailoring", {}).get("quality_gate_threshold", 75)
+    except:
+        pass
     if len(sys.argv) >= 3:
         threshold = int(sys.argv[2])
     
