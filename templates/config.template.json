@@ -1,0 +1,53 @@
+{
+  "search": {
+    "keywords": "product manager AI",
+    "locations": [
+      {
+        "name": "Greater Boston",
+        "url": "https://www.linkedin.com/jobs/search/?keywords={keywords}&location=Greater+Boston"
+      },
+      {
+        "name": "Remote USA",
+        "url": "https://www.linkedin.com/jobs/search/?keywords={keywords}&location=United+States&f_WT=2"
+      }
+    ],
+    "max_results_per_search": 70
+  },
+  "scoring": {
+    "priority_thresholds": {
+      "high": 80,
+      "medium": 65,
+      "low": 0
+    },
+    "match_score_weights": {
+      "domain_match": 40,
+      "skill_match": 20,
+      "seniority_fit": 15,
+      "years_requirement": 10,
+      "location_fit": 10,
+      "entrepreneurial_fit": 5
+    },
+    "ats_score": {
+      "keyword_categories": [
+        "product_management",
+        "ai_ml",
+        "healthcare",
+        "methodology",
+        "technical",
+        "data_analytics",
+        "leadership"
+      ]
+    }
+  },
+  "resume_tailoring": {
+    "bullet_formula": "verb + product/workflow/platform + scope + measurable result + by/through method",
+    "max_bullet_words": 25,
+    "quality_gate_threshold": 75,
+    "human_review_threshold": 70,
+    "max_concurrent_subagents": 3
+  },
+  "cron": {
+    "schedule": "0 9 * * *",
+    "deliver_to": "telegram:[YOUR_CHAT_ID]"
+  }
+}
