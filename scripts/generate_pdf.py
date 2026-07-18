@@ -20,6 +20,19 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowabl
 BASE_DIR = Path(__file__).parent
 OUTPUT_DIR = BASE_DIR / "resume" / "tailored"
 
+# Load config
+def load_config():
+    config_path = BASE_DIR / "config.json"
+    if config_path.exists():
+        with open(config_path) as f:
+            return json.load(f)
+    return {"candidate": {"name": "", "career_order": []}}
+
+CONFIG = load_config()
+CANDIDATE = CONFIG.get("candidate", {})
+CANDIDATE_NAME = CANDIDATE.get("name", "")
+CAREER_ORDER = CANDIDATE.get("career_order", [])
+
 # Load theme
 def load_theme():
     theme_path = BASE_DIR / "theme.json"
@@ -51,6 +64,7 @@ def load_theme():
         },
         "strengths": {"columns": 2, "bullet_char": "\u2022"},
         "bullets": {"char": "\u2013", "indent": 14, "max_words": 25},
+        "education": [],
         "contact_info": {
             "line1": "", "line2": ""
         }
@@ -114,27 +128,36 @@ def generate_pdf(data, filepath):
     header_contact_style = ParagraphStyle('HeaderContact', parent=styles['Normal'],
         fontName='Helvetica', fontSize=8, textColor=GRAY, spaceAfter=2, leading=10)
     
-    def header_footer(canvas, doc):
+    def header_first(canvas, doc):
+        """Full header on first page — name, contact info, rule."""
         canvas.saveState()
-        # Header — fonts and positions from theme
         name_font = T_FONTS["name"]
         sub_font = T_FONTS["subtitle"]
         canvas.setFont(name_font["family"], name_font["size"])
         canvas.setFillColor(HexColor(T_COLORS["name"]))
-        canvas.drawString(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_name_y"]*inch, 'George Mishchenko')
+        canvas.drawString(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_name_y"]*inch, CANDIDATE_NAME)
         canvas.setFont(sub_font["family"], sub_font["size"])
         canvas.setFillColor(HexColor(T_COLORS["subtitle"]))
         contact_line = T_CONTACT.get("line1", "")
         if T_CONTACT.get("line2"):
-            canvas.drawString(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_subtitle_y"]*inch, contact_line)
-            canvas.drawString(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_subtitle_y"]*inch - 0.13*inch, T_CONTACT["line2"])
-        else:
-            canvas.drawString(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_subtitle_y"]*inch, contact_line)
-        # Horizontal rule
+            contact_line = contact_line + "  \u00b7  " + T_CONTACT["line2"] if contact_line else T_CONTACT["line2"]
+        canvas.drawString(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_subtitle_y"]*inch, contact_line)
         canvas.setStrokeColor(HexColor(T_COLORS["rule_primary"]))
         canvas.setLineWidth(T_LAYOUT["header_rule_width"])
         right_edge = (8.5 - T_LAYOUT["margin_right"]) * inch
         canvas.line(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_rule_y"]*inch, right_edge, T_LAYOUT["header_rule_y"]*inch)
+        canvas.restoreState()
+
+    def header_later(canvas, doc):
+        """Minimal header on page 2+ — just name, no contact info. Saves space and avoids ATS confusion."""
+        canvas.saveState()
+        canvas.setFont('Helvetica', 8)
+        canvas.setFillColor(HexColor(T_COLORS["subtitle"]))
+        canvas.drawString(T_LAYOUT["margin_left"]*inch, 10.55*inch, CANDIDATE_NAME)
+        canvas.setStrokeColor(HexColor(T_COLORS["rule_section"]))
+        canvas.setLineWidth(T_LAYOUT["section_rule_width"])
+        right_edge = (8.5 - T_LAYOUT["margin_right"]) * inch
+        canvas.line(T_LAYOUT["margin_left"]*inch, 10.45*inch, right_edge, 10.45*inch)
         canvas.restoreState()
     
     doc = SimpleDocTemplate(str(filepath), pagesize=letter,
@@ -177,7 +200,15 @@ def generate_pdf(data, filepath):
     story.append(HRFlowable(width='100%', thickness=T_LAYOUT["section_rule_width"], color=LIGHT_GRAY, spaceAfter=4))
 
     for entry in data['tailored_highlights']:
-        story.append(Paragraph(clean(entry['header']), job_header_style))
+        header = clean(entry['header'])
+        # Add date range if missing — from config career_order
+        has_date = any(c.isdigit() for c in header[-12:])
+        if not has_date and CAREER_ORDER:
+            for career_entry in CAREER_ORDER:
+                if any(kw.lower() in header.lower() for kw in career_entry.get("keywords", [])):
+                    header = f"{header} {career_entry['dates']}"
+                    break
+        story.append(Paragraph(header, job_header_style))
         if entry.get('intro'):
             intro_style = ParagraphStyle('Intro', parent=body_style,
                 fontName='Helvetica-Oblique', fontSize=9.5, textColor=GRAY, spaceAfter=3, leading=12)
@@ -186,12 +217,12 @@ def generate_pdf(data, filepath):
         story.append(ListFlowable(bullet_items, bulletType='bullet', start='\u2013', leftIndent=6))
         story.append(Spacer(1, T_LAYOUT["spacer_between_jobs"]))
 
-    # Education
+    # Education — read from theme.json
     story.append(Spacer(1, T_LAYOUT["spacer_between_sections"]))
     story.append(Paragraph('EDUCATION &amp; CERTIFICATIONS', section_style))
     story.append(HRFlowable(width='100%', thickness=T_LAYOUT["section_rule_width"], color=LIGHT_GRAY, spaceAfter=4))
-    story.append(Paragraph('AIPMM Certified Product Manager, Master of Science in IT at Clark University', body_style))
-    story.append(Paragraph('Bachelor of Science in Business Informatics at Southern Urals State University', body_style))
+    for edu in THEME.get("education", []):
+        story.append(Paragraph(clean(edu["text"]), body_style))
 
     # Tools (if present)
     tools = data.get('tailored_tools', {})
@@ -204,10 +235,18 @@ def generate_pdf(data, filepath):
                 items_text = ', '.join(items) if isinstance(items, list) else str(items)
                 story.append(Paragraph(f'<b>{category}:</b> {clean(items_text)}', body_style))
         elif isinstance(tools, list):
-            for category_item in tools:
-                story.append(Paragraph(clean(category_item), body_style))
+            for item in tools:
+                # Handle "**Category:** items" format from subagents
+                if item.startswith('**') and ':**' in item:
+                    cat_end = item.index(':**')
+                    category = item[2:cat_end]
+                    items_text = item[cat_end+3:].strip()
+                    story.append(Paragraph(f'<b>{category}:</b> {clean(items_text)}', body_style))
+                else:
+                    story.append(Paragraph(clean(item), body_style))
 
-    doc.build(story, onFirstPage=header_footer, onLaterPages=header_footer)
+    # Adjust top margin — page 2+ uses smaller header
+    doc.build(story, onFirstPage=header_first, onLaterPages=header_later)
 
 
 def main():
@@ -264,23 +303,43 @@ def main():
                 print(f'    ⚠ {issue}')
             continue
         
-        # Gate 2: Human review (LLM) — only if review JSON exists
+        # Gate 2: Human review (LLM) — informational, generates review notes
         review_path = OUTPUT_DIR / f"{company}_review.json"
         if review_path.exists():
             with open(review_path) as rf:
                 review = json.load(rf)
             hr_score = review.get('hr_score', 100)
             hm_score = review.get('hm_score', 100)
+            status = review.get('status', 'PASS')
+            
+            # Write review notes alongside the PDF
+            safe_co = "".join(c for c in company if c.isalnum() or c in " -_").strip()
+            safe_ti = "".join(c for c in title if c.isalnum() or c in " -_").strip()
+            notes_path = OUTPUT_DIR / f"{safe_co}_{safe_ti}_review_notes.txt"
+            notes = f"QUALITY REVIEW: {company} — {title}\n"
+            notes += f"{'='*60}\n\n"
+            notes += f"HR Score: {hr_score}/100\n"
+            notes += f"HM Score: {hm_score}/100\n"
+            notes += f"Status: {status}\n\n"
+            notes += f"HR Notes: {review.get('hr_notes', '')}\n"
+            notes += f"HM Notes: {review.get('hm_notes', '')}\n\n"
+            notes += "HR Issues:\n"
+            for issue in review.get('hr_issues', []):
+                notes += f"  - {issue}\n"
+            notes += "\nHM Issues:\n"
+            for issue in review.get('hm_issues', []):
+                notes += f"  - {issue}\n"
+            notes += "\nHM Interview Questions:\n"
+            for q in review.get('hm_interview_questions', []):
+                notes += f"  ? {q}\n"
+            if status == 'FAIL':
+                notes += f"\nRegenerate Feedback: {review.get('regenerate_feedback', '')}\n"
+            notes_path.write_text(notes)
+            
             if hr_score < 70 or hm_score < 70:
-                print(f'  ✗ REJECTED (review): {company} HR={hr_score} HM={hm_score} — skipped')
-                for issue in review.get('hr_issues', []):
-                    print(f'    ⚠ HR: {issue}')
-                for issue in review.get('hm_issues', []):
-                    print(f'    ⚠ HM: {issue}')
-                continue
-            print(f'  ✓ {company} (tech={qscore} HR={hr_score} HM={hm_score})')
-        else:
-            print(f'  ~ {company} (tech={qscore}, no human review)')
+                print(f'  ⚠ {company} (tech={qscore} HR={hr_score} HM={hm_score}) — review below threshold, PDF generated with notes')
+            else:
+                print(f'  ✓ {company} (tech={qscore} HR={hr_score} HM={hm_score})')
         
         safe_co = "".join(c for c in company if c.isalnum() or c in " -_").strip()
         safe_ti = "".join(c for c in title if c.isalnum() or c in " -_").strip()

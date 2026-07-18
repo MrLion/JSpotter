@@ -22,36 +22,27 @@ Usage:
 import json
 import sys
 import re
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent
+
+def load_candidate_config():
+    config_path = BASE_DIR / "config.json"
+    if config_path.exists():
+        with open(config_path) as f:
+            cfg = json.load(f)
+        return cfg.get("candidate", {})
+    return {}
+
+_CANDIDATE = load_candidate_config()
+CAREER_ORDER = _CANDIDATE.get("career_order", [])
+CONFLATION_METRICS = _CANDIDATE.get("conflation_metrics", {})
+CLIENT_KEYWORDS = _CANDIDATE.get("client_keywords", {})
 
 BAD_KEYWORDS = ['Sole Proprietor', 'Entrepreneur', 'Agentic Trading', 'Agentic Systems']
 PANDERING = ['directly relevant to', 'well-suited for', 'perfectly aligned', 'ideal candidate']
 CLIENT_PREFIX_RE = re.compile(r'^(Google|Walgreens|Preventric|Cigna|GE Healthcare|COX)\s*[\-:]', re.I)
 
-# Metrics that belong to specific engagements — used to detect conflation
-ENGAGEMENT_METRICS = {
-    'walgreens': ['13M patients', '13 million', '13M'],
-    'google': ['61%', '91%', '$30M', '30M'],
-    'preventric': ['wearable BPM', 'vascular'],
-    'cox': ['10%', 'work order', 'payment processing'],
-    'cigna': ['medicare advantage', 'HCSC'],
-    'sole_it': ['2,000+', '2000+', '30% inbound', 'messenger'],
-    'infinnity': ['10x', '10 times', '13M patients', '13 million', '3,500', '3500', '3M', '10,000+', '10000'],
-}
-
-# Which metrics belong to which engagement (for conflation detection)
-METRIC_TO_SOURCE = {
-    '13M patients': ['infinnity', 'google'],  # EHR (Infinnity) and GenAI parsing volume (Google)
-    '13 million': ['infinnity', 'google'],
-    '61%': ['google'],
-    '91%': ['google'],
-    '$30M': ['google'],
-    '10x': ['infinnity'],
-    '10 times': ['infinnity'],
-    '3,500': ['infinnity'],
-    '10,000+': ['infinnity'],
-    '2,000+': ['sole_it'],
-    '30% inbound': ['sole_it'],
-}
 REQUIRED_FIELDS = ['url', 'company', 'title', 'tailored_summary', 'tailored_strengths',
                    'tailored_highlights', 'ats_keywords_injected', 'highlights_changed_summary', 'cover_letter']
 
@@ -89,7 +80,7 @@ def validate_entry(entry, idx):
         if 'Infinnity' in h:
             infinnity_idx = i
     if sole_idx is not None and infinnity_idx is not None and infinnity_idx < sole_idx:
-        errors.append(f'{company}: wrong order — Infinnity (pos {infinity_idx}) before Sole IT (pos {sole_idx})')
+        errors.append(f'{company}: wrong order — Infinnity (pos {infinnity_idx}) before Sole IT (pos {sole_idx})')
     
     # 5. No client-name prefixes in bullets
     for h in highlights:
@@ -97,22 +88,18 @@ def validate_entry(entry, idx):
             if CLIENT_PREFIX_RE.match(b):
                 errors.append(f'{company}: client-name prefix in bullet — "{b[:50]}"')
     
-    # 5b. Conflation detection — check if metrics from one engagement appear in another
+    # 5b. Conflation detection — using config-driven metrics
     for h in highlights:
-        header = h.get('header', '').lower()
         for b in h.get('bullets', []):
             bullet_lower = b.lower()
-            for metric, valid_sources in METRIC_TO_SOURCE.items():
-                if metric.lower() in bullet_lower:
-                    # Check which engagement this bullet is about
-                    bullet_context = b.lower()
-                    # Determine which engagement the bullet references
+            for metric, valid_sources in CONFLATION_METRICS.items():
+                if metric in bullet_lower:
                     mentioned_clients = []
-                    for client in ['google', 'walgreens', 'preventric', 'cox', 'cigna', 'sole it', 'infinnity']:
-                        if client in bullet_context or client.replace(' ', '') in bullet_context:
-                            mentioned_clients.append(client)
-                    
-                    # If the metric doesn't belong to any mentioned client, it's likely conflated
+                    for client, keywords in CLIENT_KEYWORDS.items():
+                        for kw in keywords:
+                            if kw in bullet_lower:
+                                mentioned_clients.append(client)
+                                break
                     for client in mentioned_clients:
                         if client not in valid_sources:
                             errors.append(f'{company}: possible metric conflation — "{metric}" belongs to {valid_sources} but bullet mentions "{client}"')
@@ -148,11 +135,27 @@ def validate_entry(entry, idx):
     
     # 11. Cover letter paragraphs
     cover = entry.get('cover_letter', '')
-    # Handle both real newlines and escaped newlines
     cover_normalized = cover.replace('\\n', '\n')
     paragraphs = [p for p in cover_normalized.split('\n\n') if p.strip()]
     if len(paragraphs) < 4 or len(paragraphs) > 7:
         errors.append(f'{company}: cover letter has {len(paragraphs)} paragraphs (expected 4-7 with greeting/signoff)')
+    
+    # 12. Dates on highlight headers
+    for h in highlights:
+        header = h.get('header', '')
+        last_12 = header[-12:] if len(header) >= 12 else header
+        if not any(c.isdigit() for c in last_12):
+            errors.append(f'{company}: highlight header missing dates — "{header}"')
+    
+    # 13. Tools format — must be dict, not list
+    tools = entry.get('tailored_tools')
+    if tools is not None:
+        if isinstance(tools, list):
+            errors.append(f'{company}: tools returned as list (should be dict with category keys)')
+        elif isinstance(tools, dict):
+            for key, val in tools.items():
+                if '**' in key or '**' in str(val):
+                    errors.append(f'{company}: markdown asterisks in tools — "{key}"')
     
     return errors
 
@@ -167,15 +170,26 @@ def validate_and_fix(entry):
     if len(clean_highlights) < len(highlights):
         changes.append('removed sole proprietor/entrepreneur entries')
     
-    # Reorder: EPAM, Sole IT, Infinnity, other
-    epam = [h for h in clean_highlights if 'EPAM' in h.get('header', '')]
-    sole = [h for h in clean_highlights if 'Sole IT' in h.get('header', '') or 'Senior Product Consultant' in h.get('header', '') or 'Senior product consultant' in h.get('header', '')]
-    infinnity = [h for h in clean_highlights if 'Infinnity' in h.get('header', '')]
-    other = [h for h in clean_highlights if h not in epam and h not in sole and h not in infinnity]
+    # Reorder based on config career_order
+    if CAREER_ORDER:
+        ordered = []
+        used = set()
+        for career_entry in CAREER_ORDER:
+            keywords = [kw.lower() for kw in career_entry.get("keywords", [])]
+            for i, h in enumerate(clean_highlights):
+                if i in used:
+                    continue
+                if any(kw in h.get('header', '').lower() for kw in keywords):
+                    ordered.append(h)
+                    used.add(i)
+        # Append any remaining highlights
+        other = [h for i, h in enumerate(clean_highlights) if i not in used]
+        new_order = ordered + other
+    else:
+        new_order = clean_highlights
     
-    new_order = epam + sole + infinnity + other
     if [h.get('header') for h in new_order] != [h.get('header') for h in clean_highlights]:
-        changes.append('reordered highlights to EPAM → Sole IT → Infinnity')
+        changes.append('reordered highlights per config career_order')
     
     entry['tailored_highlights'] = new_order
     return entry, changes

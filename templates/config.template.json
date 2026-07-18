@@ -1,8 +1,16 @@
 {
-  "_comment": "Copy this file to config.json and customize for your job search.",
-
-  "search": {
-    "_comment": "Keywords and locations for LinkedIn job search",
+  "_comment": "Copy to config.json and customize. See docs/SETUP.md for details.",
+  "candidate": {
+    "_comment": "Candidate name, career order, conflation metrics, and client keywords for validation",
+    "name": "Your Name",
+    "career_order": [
+      {"keywords": ["Employer1"], "dates": "(Year–Year)"},
+      {"keywords": ["Employer2"], "dates": "(Year–Year)"}
+    ],
+    "conflation_metrics": {},
+    "client_keywords": {}
+  },
+"search": {
     "keywords": "product manager AI",
     "locations": [
       {
@@ -18,9 +26,7 @@
     "max_results_per_search": 70,
     "results_file": "output/linkedin_extract_today.json"
   },
-
   "scoring": {
-    "_comment": "Priority thresholds and scoring weights",
     "priority_thresholds": {
       "high": 80,
       "medium": 65
@@ -35,7 +41,12 @@
       "Infrastructure": 8,
       "Mobile": 4
     },
-    "candidate_domains": ["AI/ML", "Healthcare", "Finance", "Enterprise"],
+    "candidate_domains": [
+      "AI/ML",
+      "Healthcare",
+      "Finance",
+      "Enterprise"
+    ],
     "location_preferences": {
       "exact_match": 10,
       "remote": 8,
@@ -43,21 +54,22 @@
     },
     "preferred_location": "Boston"
   },
-
   "resume_tailoring": {
-    "_comment": "Resume generation and quality control settings",
     "bullet_max_words": 25,
     "quality_gate_threshold": 75,
     "human_review_threshold": 70,
     "max_highlights": 4,
     "max_bullets_per_highlight": 5
   },
-
   "journal": {
     "path": "journal.xlsx",
-    "sheets": ["Jobs", "Applications", "Resume Versions", "Reference"]
+    "sheets": [
+      "Jobs",
+      "Applications",
+      "Resume Versions",
+      "Reference"
+    ]
   },
-
   "output_dir": "output",
   "resume_dir": "resume/tailored"
 }
