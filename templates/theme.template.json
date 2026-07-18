@@ -1,0 +1,43 @@
+{
+  "fonts": {
+    "name": {"family": "Helvetica-Bold", "size": 16},
+    "subtitle": {"family": "Helvetica", "size": 8},
+    "section_header": {"family": "Helvetica-Bold", "size": 11},
+    "job_header": {"family": "Helvetica-Bold", "size": 10.5},
+    "body": {"family": "Helvetica", "size": 10.5},
+    "bullet": {"family": "Helvetica", "size": 10.5},
+    "intro": {"family": "Helvetica-Oblique", "size": 9.5}
+  },
+  "colors": {
+    "name": "#2c3e50",
+    "subtitle": "#7f8c8d",
+    "section_header": "#2c3e50",
+    "job_header": "#2c3e50",
+    "body": "#333333",
+    "intro": "#7f8c8d",
+    "rule_primary": "#2c3e50",
+    "rule_section": "#bdc3c7",
+    "link": "#2563eb"
+  },
+  "layout": {
+    "margin_left": 0.75,
+    "margin_right": 0.75,
+    "margin_top": 1.05,
+    "margin_bottom": 0.6,
+    "header_name_y": 10.55,
+    "header_subtitle_y": 10.35,
+    "header_rule_y": 10.25,
+    "header_rule_width": 2,
+    "section_rule_width": 0.5,
+    "section_space_before": 6,
+    "section_space_after": 2,
+    "spacer_between_sections": 3,
+    "spacer_between_jobs": 4
+  },
+  "strengths": {"columns": 2, "bullet_char": "•"},
+  "bullets": {"char": "–", "indent": 14, "max_words": 25},
+  "contact_info": {
+    "line1": "City, State  ·  (xxx) xxx-xxxx  ·  your@email.com",
+    "line2": "linkedin.com/in/your-profile"
+  }
+}

@@ -16,54 +16,88 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowable, ListItem, HRFlowable, Table, TableStyle
-from reportlab.lib.enums import TA_JUSTIFY
 
 BASE_DIR = Path(__file__).parent
 OUTPUT_DIR = BASE_DIR / "resume" / "tailored"
 
-# Contact info — plain text, no hyperlinks (ATS-friendly)
-CONTACT_INFO = (
-    'Westborough, MA &middot; '
-    '(774) 244-9321 &middot; '
-    'george@mishchenko.us &middot; '
-    'mishchenko.us &middot; '
-    'linkedin.com/in/george-mishchenko-46139910'
-)
+# Load theme
+def load_theme():
+    theme_path = BASE_DIR / "theme.json"
+    if theme_path.exists():
+        with open(theme_path) as f:
+            return json.load(f)
+    # Defaults
+    return {
+        "fonts": {
+            "name": {"family": "Helvetica-Bold", "size": 16},
+            "subtitle": {"family": "Helvetica", "size": 8},
+            "section_header": {"family": "Helvetica-Bold", "size": 11},
+            "job_header": {"family": "Helvetica-Bold", "size": 10.5},
+            "body": {"family": "Helvetica", "size": 10.5},
+            "bullet": {"family": "Helvetica", "size": 10.5},
+            "intro": {"family": "Helvetica-Oblique", "size": 9.5}
+        },
+        "colors": {
+            "name": "#2c3e50", "subtitle": "#7f8c8d", "section_header": "#2c3e50",
+            "job_header": "#2c3e50", "body": "#333333", "intro": "#7f8c8d",
+            "rule_primary": "#2c3e50", "rule_section": "#bdc3c7", "link": "#2563eb"
+        },
+        "layout": {
+            "margin_left": 0.75, "margin_right": 0.75, "margin_top": 1.05, "margin_bottom": 0.6,
+            "header_name_y": 10.55, "header_subtitle_y": 10.35, "header_rule_y": 10.25,
+            "header_rule_width": 2, "section_rule_width": 0.5,
+            "section_space_before": 6, "section_space_after": 2,
+            "spacer_between_sections": 3, "spacer_between_jobs": 4
+        },
+        "strengths": {"columns": 2, "bullet_char": "\u2022"},
+        "bullets": {"char": "\u2013", "indent": 14, "max_words": 25},
+        "contact_info": {
+            "line1": "", "line2": ""
+        }
+    }
 
-# Colors
-DARK = HexColor('#2c3e50')
-GRAY = HexColor('#7f8c8d')
-LIGHT_GRAY = HexColor('#bdc3c7')
-BODY_COLOR = HexColor('#333333')
+THEME = load_theme()
+T_FONTS = THEME["fonts"]
+T_COLORS = THEME["colors"]
+T_LAYOUT = THEME["layout"]
+T_STRENGTHS = THEME["strengths"]
+T_BULLETS = THEME["bullets"]
+T_CONTACT = THEME["contact_info"]
 
-# Styles
+# Colors from theme
+DARK = HexColor(T_COLORS["name"])
+GRAY = HexColor(T_COLORS["subtitle"])
+LIGHT_GRAY = HexColor(T_COLORS["rule_section"])
+BODY_COLOR = HexColor(T_COLORS["body"])
+
+# Styles from theme
 styles = getSampleStyleSheet()
 
 name_style = ParagraphStyle('Name', parent=styles['Normal'],
-    fontName='Helvetica-Bold', fontSize=16, textColor=DARK, spaceAfter=2, leading=20)
+    fontName=T_FONTS["name"]["family"], fontSize=T_FONTS["name"]["size"], textColor=DARK, spaceAfter=2, leading=T_FONTS["name"]["size"] + 4)
 
 subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'],
-    fontName='Helvetica', fontSize=9, textColor=GRAY, spaceAfter=10, leading=12)
+    fontName=T_FONTS["subtitle"]["family"], fontSize=T_FONTS["subtitle"]["size"], textColor=GRAY, spaceAfter=10, leading=T_FONTS["subtitle"]["size"] + 3)
 
 section_style = ParagraphStyle('Section', parent=styles['Normal'],
-    fontName='Helvetica-Bold', fontSize=11, textColor=DARK,
-    spaceBefore=6, spaceAfter=2, leading=14)
+    fontName=T_FONTS["section_header"]["family"], fontSize=T_FONTS["section_header"]["size"], textColor=HexColor(T_COLORS["section_header"]),
+    spaceBefore=T_LAYOUT["section_space_before"], spaceAfter=T_LAYOUT["section_space_after"], leading=T_FONTS["section_header"]["size"] + 3)
 
 body_style = ParagraphStyle('Body', parent=styles['Normal'],
-    fontName='Helvetica', fontSize=10.5, textColor=BODY_COLOR,
-    leading=14)
+    fontName=T_FONTS["body"]["family"], fontSize=T_FONTS["body"]["size"], textColor=BODY_COLOR,
+    leading=T_FONTS["body"]["size"] + 3)
 
 job_header_style = ParagraphStyle('JobHeader', parent=styles['Normal'],
-    fontName='Helvetica-Bold', fontSize=10.5, textColor=DARK,
-    spaceBefore=4, spaceAfter=2, leading=14)
+    fontName=T_FONTS["job_header"]["family"], fontSize=T_FONTS["job_header"]["size"], textColor=HexColor(T_COLORS["job_header"]),
+    spaceBefore=4, spaceAfter=2, leading=T_FONTS["job_header"]["size"] + 3)
 
 bullet_style = ParagraphStyle('Bullet', parent=styles['Normal'],
-    fontName='Helvetica', fontSize=10.5, textColor=BODY_COLOR,
-    leftIndent=14, bulletIndent=2, leading=14, spaceAfter=1)
+    fontName=T_FONTS["bullet"]["family"], fontSize=T_FONTS["bullet"]["size"], textColor=BODY_COLOR,
+    leftIndent=T_BULLETS["indent"], bulletIndent=2, leading=T_FONTS["bullet"]["size"] + 3, spaceAfter=1)
 
 strength_style = ParagraphStyle('Strength', parent=styles['Normal'],
-    fontName='Helvetica', fontSize=10.5, textColor=BODY_COLOR,
-    leftIndent=10, bulletIndent=0, leading=14, spaceAfter=1)
+    fontName=T_FONTS["bullet"]["family"], fontSize=T_FONTS["bullet"]["size"], textColor=BODY_COLOR,
+    leftIndent=10, bulletIndent=0, leading=T_FONTS["bullet"]["size"] + 3, spaceAfter=1)
 
 
 def clean(text):
@@ -82,36 +116,43 @@ def generate_pdf(data, filepath):
     
     def header_footer(canvas, doc):
         canvas.saveState()
-        # Header — same fonts as original first-page header
-        canvas.setFont('Helvetica-Bold', 16)
-        canvas.setFillColor(DARK)
-        canvas.drawString(0.75*inch, 10.55*inch, 'George Mishchenko')
-        canvas.setFont('Helvetica', 8)
-        canvas.setFillColor(GRAY)
-        canvas.drawString(0.75*inch, 10.35*inch,
-            'Westborough, MA  \u00b7  (774) 244-9321  \u00b7  george@mishchenko.us  \u00b7  linkedin.com/in/george-mishchenko-46139910')
-        # Horizontal rule under header
-        canvas.setStrokeColor(DARK)
-        canvas.setLineWidth(2)
-        canvas.line(0.75*inch, 10.25*inch, 7.75*inch, 10.25*inch)
+        # Header — fonts and positions from theme
+        name_font = T_FONTS["name"]
+        sub_font = T_FONTS["subtitle"]
+        canvas.setFont(name_font["family"], name_font["size"])
+        canvas.setFillColor(HexColor(T_COLORS["name"]))
+        canvas.drawString(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_name_y"]*inch, 'George Mishchenko')
+        canvas.setFont(sub_font["family"], sub_font["size"])
+        canvas.setFillColor(HexColor(T_COLORS["subtitle"]))
+        contact_line = T_CONTACT.get("line1", "")
+        if T_CONTACT.get("line2"):
+            canvas.drawString(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_subtitle_y"]*inch, contact_line)
+            canvas.drawString(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_subtitle_y"]*inch - 0.13*inch, T_CONTACT["line2"])
+        else:
+            canvas.drawString(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_subtitle_y"]*inch, contact_line)
+        # Horizontal rule
+        canvas.setStrokeColor(HexColor(T_COLORS["rule_primary"]))
+        canvas.setLineWidth(T_LAYOUT["header_rule_width"])
+        right_edge = (8.5 - T_LAYOUT["margin_right"]) * inch
+        canvas.line(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_rule_y"]*inch, right_edge, T_LAYOUT["header_rule_y"]*inch)
         canvas.restoreState()
     
     doc = SimpleDocTemplate(str(filepath), pagesize=letter,
-        leftMargin=0.75*inch, rightMargin=0.75*inch,
-        topMargin=1.05*inch, bottomMargin=0.6*inch)
+        leftMargin=T_LAYOUT["margin_left"]*inch, rightMargin=T_LAYOUT["margin_right"]*inch,
+        topMargin=T_LAYOUT["margin_top"]*inch, bottomMargin=T_LAYOUT["margin_bottom"]*inch)
 
     story = []
 
     # First page header (inline, not repeated — the canvas handles repeats)
     # Professional Summary
     story.append(Paragraph('PROFESSIONAL SUMMARY', section_style))
-    story.append(HRFlowable(width='100%', thickness=0.5, color=LIGHT_GRAY, spaceAfter=4))
+    story.append(HRFlowable(width='100%', thickness=T_LAYOUT["section_rule_width"], color=LIGHT_GRAY, spaceAfter=4))
     story.append(Paragraph(clean(data['tailored_summary']), body_style))
 
     # Core Strengths — two column
-    story.append(Spacer(1, 3))
+    story.append(Spacer(1, T_LAYOUT["spacer_between_sections"]))
     story.append(Paragraph('CORE STRENGTHS', section_style))
-    story.append(HRFlowable(width='100%', thickness=0.5, color=LIGHT_GRAY, spaceAfter=4))
+    story.append(HRFlowable(width='100%', thickness=T_LAYOUT["section_rule_width"], color=LIGHT_GRAY, spaceAfter=4))
 
     strengths = data['tailored_strengths']
     mid = (len(strengths) + 1) // 2
@@ -131,9 +172,9 @@ def generate_pdf(data, filepath):
     story.append(strength_table)
 
     # Career Highlights
-    story.append(Spacer(1, 3))
+    story.append(Spacer(1, T_LAYOUT["spacer_between_sections"]))
     story.append(Paragraph('CAREER HIGHLIGHTS', section_style))
-    story.append(HRFlowable(width='100%', thickness=0.5, color=LIGHT_GRAY, spaceAfter=4))
+    story.append(HRFlowable(width='100%', thickness=T_LAYOUT["section_rule_width"], color=LIGHT_GRAY, spaceAfter=4))
 
     for entry in data['tailored_highlights']:
         story.append(Paragraph(clean(entry['header']), job_header_style))
@@ -143,21 +184,21 @@ def generate_pdf(data, filepath):
             story.append(Paragraph(clean(entry['intro']), intro_style))
         bullet_items = [ListItem(Paragraph(clean(b), bullet_style), leftIndent=14, value='\u2013') for b in entry['bullets']]
         story.append(ListFlowable(bullet_items, bulletType='bullet', start='\u2013', leftIndent=6))
-        story.append(Spacer(1, 4))
+        story.append(Spacer(1, T_LAYOUT["spacer_between_jobs"]))
 
     # Education
-    story.append(Spacer(1, 3))
+    story.append(Spacer(1, T_LAYOUT["spacer_between_sections"]))
     story.append(Paragraph('EDUCATION &amp; CERTIFICATIONS', section_style))
-    story.append(HRFlowable(width='100%', thickness=0.5, color=LIGHT_GRAY, spaceAfter=4))
+    story.append(HRFlowable(width='100%', thickness=T_LAYOUT["section_rule_width"], color=LIGHT_GRAY, spaceAfter=4))
     story.append(Paragraph('AIPMM Certified Product Manager, Master of Science in IT at Clark University', body_style))
     story.append(Paragraph('Bachelor of Science in Business Informatics at Southern Urals State University', body_style))
 
     # Tools (if present)
     tools = data.get('tailored_tools', {})
     if tools:
-        story.append(Spacer(1, 3))
+        story.append(Spacer(1, T_LAYOUT["spacer_between_sections"]))
         story.append(Paragraph('TOOLS &amp; TECHNOLOGIES', section_style))
-        story.append(HRFlowable(width='100%', thickness=0.5, color=LIGHT_GRAY, spaceAfter=4))
+        story.append(HRFlowable(width='100%', thickness=T_LAYOUT["section_rule_width"], color=LIGHT_GRAY, spaceAfter=4))
         if isinstance(tools, dict):
             for category, items in tools.items():
                 items_text = ', '.join(items) if isinstance(items, list) else str(items)
