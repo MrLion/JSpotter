@@ -304,13 +304,48 @@ def main():
             continue
         
         # Gate 2: Human review (LLM) — informational, generates review notes
+        # Try multiple review file naming patterns
+        safe_co_review = "".join(c for c in company if c.isalnum() or c in " -_").strip()
         review_path = OUTPUT_DIR / f"{company}_review.json"
+        if not review_path.exists():
+            review_path = OUTPUT_DIR / f"{safe_co_review}_review.json"
         if review_path.exists():
             with open(review_path) as rf:
                 review = json.load(rf)
-            hr_score = review.get('hr_score', 100)
-            hm_score = review.get('hm_score', 100)
+            
+            # Handle both flat and nested JSON structures
+            hr_score = review.get('hr_score')
+            hm_score = review.get('hm_score')
+            hr_notes = review.get('hr_notes', '')
+            hm_notes = review.get('hm_notes', '')
+            hr_issues = review.get('hr_issues', [])
+            hm_issues = review.get('hm_issues', [])
+            hm_questions = review.get('hm_interview_questions', [])
+            
+            if hr_score is None and 'hr_recruiter_review' in review:
+                hr_data = review['hr_recruiter_review']
+                hr_score = hr_data.get('total_score', hr_data.get('score_100', 100))
+                hr_issues = hr_data.get('issues', [])
+                hr_notes = hr_data.get('notes', '')
+                if isinstance(hr_notes, dict):
+                    hr_notes = hr_notes.get('notes', str(hr_notes))
+            
+            if hm_score is None and 'hiring_manager_review' in review:
+                hm_data = review['hiring_manager_review']
+                hm_score = hm_data.get('total_score', hm_data.get('score_100', 100))
+                hm_issues = hm_data.get('issues', [])
+                hm_notes = hm_data.get('notes', '')
+                if isinstance(hm_notes, dict):
+                    hm_notes = hm_notes.get('notes', str(hm_notes))
+                hm_questions = hm_data.get('interview_questions', [])
+            
+            hr_score = hr_score or 100
+            hm_score = hm_score or 100
             status = review.get('status', 'PASS')
+            if status == 'PASS' and 'overall' in review:
+                overall = review['overall']
+                if isinstance(overall, dict):
+                    status = overall.get('status', 'PASS')
             
             # Write review notes alongside the PDF
             safe_co = "".join(c for c in company if c.isalnum() or c in " -_").strip()
@@ -321,20 +356,23 @@ def main():
             notes += f"HR Score: {hr_score}/100\n"
             notes += f"HM Score: {hm_score}/100\n"
             notes += f"Status: {status}\n\n"
-            notes += f"HR Notes: {review.get('hr_notes', '')}\n"
-            notes += f"HM Notes: {review.get('hm_notes', '')}\n\n"
+            notes += f"HR Notes: {hr_notes}\n"
+            notes += f"HM Notes: {hm_notes}\n\n"
             notes += "HR Issues:\n"
-            for issue in review.get('hr_issues', []):
+            for issue in hr_issues:
                 notes += f"  - {issue}\n"
             notes += "\nHM Issues:\n"
-            for issue in review.get('hm_issues', []):
+            for issue in hm_issues:
                 notes += f"  - {issue}\n"
             notes += "\nHM Interview Questions:\n"
-            for q in review.get('hm_interview_questions', []):
+            for q in hm_questions:
                 notes += f"  ? {q}\n"
-            if status == 'FAIL':
+            if status == 'FAIL' or hr_score < 70 or hm_score < 70:
                 notes += f"\nRegenerate Feedback: {review.get('regenerate_feedback', '')}\n"
             notes_path.write_text(notes)
+            
+            # Clean up JSON review file — only keep txt notes
+            review_path.unlink()
             
             if hr_score < 70 or hm_score < 70:
                 print(f'  ⚠ {company} (tech={qscore} HR={hr_score} HM={hm_score}) — review below threshold, PDF generated with notes')
