@@ -1,5 +1,7 @@
 # JSpotter
 
+![JSpotter](JSpotter.png)
+
 AI-powered job hunting automation pipeline — LinkedIn search, LLM scoring, resume tailoring, and application tracking.
 
 ## Pipeline Stages
