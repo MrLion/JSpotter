@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented here.
 
+## [0.5.0] - 2026-07-20
+
+### Added
+- **Batch review** (`run_batch_review.py`): reviews up to 4 resumes in one subagent call (~70% review token savings)
+- **Same-company adapter** (`adapt_resume.py`): adapts base resume for second role at same company (~50% generation token savings)
+- **Cover letter PDF generation**: business letter format with date, recipient block, salutation, body, closing, enclosure notation
+- **Legal status** in resume header (U.S. Permanent Resident)
+- **Insulet Corporation** job added to journal with full scoring
+
+### Changed
+- Page margins reduced from 0.75" to 0.6" for more content space
+- Page 2+ header simplified to name only (no contact info — ATS-friendly)
+- Company cells color-coded in journal (green=Applied, red=Rejected, grey=Closed, yellow=Not Applied)
+- EPAM end date changed to "Present" across all resumes
+
+### Removed
+- 8 obsolete scripts: `score_jobs.py`, `tailor_resume.py`, `tailor_resume_v2.py`, `update_scores.py`, `prepare_scoring.py`, `archive_applied.py`, `report_helper.py`, `report_today.py`
+
+### Fixed
+- Quality gate false positives: summary conflation now checks per-sentence, verb list expanded to 55+
+- Review JSON cleanup: handles both flat and nested structures, special characters in company names
+- Cover letter PDF: business letter format with all 6 standard elements
+
 ## [0.4.0] - 2026-07-20
 
 ### Fixed
