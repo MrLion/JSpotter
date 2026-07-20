@@ -103,7 +103,7 @@ def score_entry(entry, job_desc=''):
             if word_count > 25:
                 formula_score -= 3
                 issues.append(f'{company}: bullet over 25 words ({word_count})')
-            # Check for verb at start
+            # Check for verb at start — expanded list
             if words and words[0].lower() not in [
                 'launched', 'shipped', 'delivered', 'improved', 'increased', 'reduced',
                 'defined', 'developed', 'directed', 'modernized', 'drove', 'built',
@@ -111,7 +111,12 @@ def score_entry(entry, job_desc=''):
                 'led', 'created', 'designed', 'managed', 'established', 'expanded',
                 'partnered', 'collaborated', 'facilitated', 'analyzed', 'introduced',
                 'standardized', 'conducted', 'mentored', 'advised', 'ensured',
-                'attained', 'grew', 'scaled', 'transformed', 'identified',
+                'attained', 'scaled', 'transformed', 'identified', 'completed',
+                'won', 'generated', 'secured', 'unlocked', 'launched', 'drives',
+                'shaping', 'accelerated', 'spearheaded', 'championed', 'negotiated',
+                'presented', 'executed', 'implemented', 'prototyped', 'piloted',
+                'architected', 'authored', 'published', 'presented', 'trained',
+                'evaluated', 'measured', 'tested', 'validated', 'released',
             ]:
                 formula_score -= 2
                 issues.append(f'{company}: bullet may not start with action verb — "{words[0]}"')
@@ -139,21 +144,25 @@ def score_entry(entry, job_desc=''):
                             conflation_score -= 5
                             issues.append(f'{company}: CONFLATION — "{metric}" belongs to {valid_sources} but bullet references "{client}"')
     
-    # Also check summary for conflation
-    summary_lower = summary.lower()
-    mentioned_clients_summary = []
-    for client, keywords in CLIENT_KEYWORDS.items():
-        for kw in keywords:
-            if kw in summary_lower:
-                mentioned_clients_summary.append(client)
-                break
-    mentioned_clients_summary = list(set(mentioned_clients_summary))
-    for metric, valid_sources in METRIC_TO_SOURCE.items():
-        if metric in summary_lower:
-            for client in mentioned_clients_summary:
-                if client not in valid_sources:
-                    conflation_score -= 5
-                    issues.append(f'{company}: SUMMARY CONFLATION — "{metric}" belongs to {valid_sources} but summary references "{client}"')
+    # Also check summary for conflation — but per-sentence (summary legitimately references multiple engagements)
+    summary_sentences = re.split(r'[.!?]+', summary)
+    for sentence in summary_sentences:
+        sentence_lower = sentence.lower().strip()
+        if not sentence_lower:
+            continue
+        mentioned_clients_sentence = []
+        for client, keywords in CLIENT_KEYWORDS.items():
+            for kw in keywords:
+                if kw in sentence_lower:
+                    mentioned_clients_sentence.append(client)
+                    break
+        mentioned_clients_sentence = list(set(mentioned_clients_sentence))
+        for metric, valid_sources in METRIC_TO_SOURCE.items():
+            if metric in sentence_lower:
+                for client in mentioned_clients_sentence:
+                    if client not in valid_sources:
+                        conflation_score -= 5
+                        issues.append(f'{company}: SUMMARY CONFLATION — "{metric}" belongs to {valid_sources} but sentence references "{client}"')
     
     conflation_score = max(0, conflation_score)
     score -= (20 - conflation_score)
