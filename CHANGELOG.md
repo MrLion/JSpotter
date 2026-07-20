@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here.
 
+## [0.6.0] - 2026-07-20
+
+### Added
+- **Batch review pipeline validated**: `run_batch_review.py` tested end-to-end on Veeva dual-role scenario — 1 subagent reviews both resumes in ~150s, catches cross-resume consistency issues
+- **Same-company adapter tested**: `adapt_resume.py` tested and reverted — full generation produces better quality when roles have different domain focus (PromoMats vs Development Cloud)
+
+### Changed
+- Pipeline standardizes on: **full generation per resume + batch review for multiple resumes**
+- Adapter (`adapt_resume.py`) kept for very similar roles only (e.g., Senior vs Lead same product line)
+
+### Tested
+- Veeva Senior PM + Technical PM pipeline: 2 full generations + 1 batch review = 3 subagents (vs 4 previously)
+
 ## [0.5.0] - 2026-07-20
 
 ### Added
