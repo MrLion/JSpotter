@@ -2,6 +2,38 @@
 
 All notable changes to this project are documented here.
 
+## [0.7.0] - 2026-07-25
+
+### Added
+- **Telegram report template** (`TELEGRAM_TEMPLATE.md`): standardized daily scan format — high priority jobs with full detail, medium/low as counts only, pipeline status at bottom
+- **LinkedIn ideas template** (`LINKEDIN_IDEAS_TEMPLATE.md`): weekly post idea generator scanning 5 sources (Lenny's, a16z, Hugging Face, OpenAI, Anthropic)
+- **LinkedIn ideas cron job**: every Friday 8:30 AM EST, generates 5 post ideas grounded in real experience, saves to file, delivers to Telegram
+- **Web app design doc** (`WEB_APP_DESIGN.md`): brainstorm for future FastAPI + React dashboard
+- **Color coding in run_scoring.py**: company cells auto-colored by status (green=Applied, blue=Interview, red=Rejected, grey=Closed, yellow=Not Applied)
+- **Business letter format** for cover letter PDFs: date, recipient block, salutation, body, standard closing, enclosure notation
+- **Legal status** in resume header: "U.S. Permanent Resident"
+- **Custom JD pipeline**: supports .docx files as job description source
+
+### Changed
+- Bullet word limit increased from 25 to 35 across all scripts
+- Cron prompt rewritten: final response must be ONLY the report — no narration, no explanations
+- EPAM dates locked to "May 2026" — template rule prevents changing to "Present" (background check integrity)
+- Job titles locked to master profile — template rule prevents inflation
+- Cover letter template rule: no closing/signature — generator adds standard business closing
+- Page margins reduced from 0.75" to 0.6"
+
+### Fixed
+- Quality gate false positives: per-sentence conflation check, expanded verb list (55+)
+- Cover letter duplicate signature: generator strips agent closings, always renders standard business closing
+- Source column bug: cron agent was setting location_1/location_2 instead of boston/remote
+- Job ID assignment for manually added jobs
+- run_scoring.py auto-applies color coding after scoring
+
+### Pipeline Stats (to date)
+- 324 jobs tracked, 12 applied, 2 interviews, 1 rejected, 6 closed
+- Quality gate scores: 87-100 across all generated resumes
+- Scripts: 12 active (8 obsolete removed)
+
 ## [0.6.0] - 2026-07-20
 
 ### Added
