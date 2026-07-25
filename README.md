@@ -38,11 +38,12 @@ JSpotter/
 │   ├── run_batch_review.py     # Batch LLM review (multiple resumes in one call)
 │   ├── adapt_resume.py         # Same-company resume adapter
 │   └── run_review.py           # Single resume LLM review
-├── templates/                  # Templates
+├── templates/                  # All templates (generic, no personal data)
 │   ├── MASTER_PROFILE.template.md
-│   └── config.template.json
-├── tailoring_prompt_template.md  # Generic tailoring prompt (no personal data)
-├── review_prompt_template.md     # HR/HM review prompt template
+│   ├── config.template.json
+│   ├── theme.template.json
+│   ├── tailoring_prompt_template.md
+│   └── review_prompt_template.md
 ├── docs/                       # Setup and usage documentation
 ├── CHANGELOG.md                # Release history
 └── README.md
