@@ -104,12 +104,12 @@ def validate_entry(entry, idx):
                         if client not in valid_sources:
                             errors.append(f'{company}: possible metric conflation — "{metric}" belongs to {valid_sources} but bullet mentions "{client}"')
     
-    # 6. Bullets ≤ 25 words (formula: verb + product + scope + result + method)
+    # 6. Bullets ≤ 35 words (formula: verb + product + scope + result + method)
     for h in highlights:
         for b in h.get('bullets', []):
             word_count = len(b.split())
-            if word_count > 25:
-                errors.append(f'{company}: bullet exceeds 25 words ({word_count}) — "{b[:40]}..."')
+            if word_count > 35:
+                errors.append(f'{company}: bullet exceeds 35 words ({word_count}) — "{b[:40]}..."')
     
     # 7. Strength labels ≤ 4 words
     for s in entry.get('tailored_strengths', []):

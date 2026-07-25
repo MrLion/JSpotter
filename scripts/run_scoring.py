@@ -259,6 +259,32 @@ def main():
         max_col = ws_filter.max_column
         ws_filter.auto_filter.ref = f'A1:{get_column_letter(max_col)}1'
     
+    # Color-code company cells by status
+    from openpyxl.styles import PatternFill, Font
+    green_fill = PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid')
+    red_fill = PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid')
+    yellow_fill = PatternFill(start_color='FFEB9C', end_color='FFEB9C', fill_type='solid')
+    grey_fill = PatternFill(start_color='D9D9D9', end_color='D9D9D9', fill_type='solid')
+    blue_fill = PatternFill(start_color='B3D9FF', end_color='B3D9FF', fill_type='solid')
+    
+    for row in ws.iter_rows(min_row=2, max_col=20):
+        status_cell = ws.cell(row=row[0].row, column=15)
+        status = str(status_cell.value).lower() if status_cell.value else ''
+        company_cell = row[1]
+        
+        if 'interview' in status:
+            company_cell.fill = blue_fill
+            company_cell.font = Font(bold=True)
+        elif 'applied' in status and 'not' not in status:
+            company_cell.fill = green_fill
+            company_cell.font = Font(bold=True)
+        elif 'reject' in status:
+            company_cell.fill = red_fill
+        elif 'closed' in status:
+            company_cell.fill = grey_fill
+        elif 'not applied' in status or status == '':
+            company_cell.fill = yellow_fill
+    
     wb.save(str(JOURNAL))
     print(f"Scored {scored} jobs. Journal updated.")
 

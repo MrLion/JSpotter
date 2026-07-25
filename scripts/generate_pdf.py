@@ -249,6 +249,101 @@ def generate_pdf(data, filepath):
     doc.build(story, onFirstPage=header_first, onLaterPages=header_later)
 
 
+def generate_cover_letter_pdf(data, filepath):
+    """Generate a cover letter PDF following standard business letter format."""
+    from datetime import datetime
+    
+    def cl_header(canvas, doc):
+        """Same header as resume page 1."""
+        canvas.saveState()
+        name_font = T_FONTS["name"]
+        sub_font = T_FONTS["subtitle"]
+        canvas.setFont(name_font["family"], name_font["size"])
+        canvas.setFillColor(HexColor(T_COLORS["name"]))
+        canvas.drawString(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_name_y"]*inch, CANDIDATE_NAME)
+        canvas.setFont(sub_font["family"], sub_font["size"])
+        canvas.setFillColor(HexColor(T_COLORS["subtitle"]))
+        contact_line = T_CONTACT.get("line1", "")
+        if T_CONTACT.get("line2"):
+            contact_line = contact_line + "  \u00b7  " + T_CONTACT["line2"] if contact_line else T_CONTACT["line2"]
+        canvas.drawString(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_subtitle_y"]*inch, contact_line)
+        canvas.setStrokeColor(HexColor(T_COLORS["rule_primary"]))
+        canvas.setLineWidth(T_LAYOUT["header_rule_width"])
+        right_edge = (8.5 - T_LAYOUT["margin_right"]) * inch
+        canvas.line(T_LAYOUT["margin_left"]*inch, T_LAYOUT["header_rule_y"]*inch, right_edge, T_LAYOUT["header_rule_y"]*inch)
+        canvas.restoreState()
+    
+    doc = SimpleDocTemplate(str(filepath), pagesize=letter,
+        leftMargin=T_LAYOUT["margin_left"]*inch, rightMargin=T_LAYOUT["margin_right"]*inch,
+        topMargin=T_LAYOUT["margin_top"]*inch, bottomMargin=T_LAYOUT["margin_bottom"]*inch)
+    
+    company = data.get('company', '')
+    title = data.get('title', '')
+    today = datetime.now().strftime('%B %d, %Y')
+    
+    story = []
+    
+    # 1. Date
+    story.append(Paragraph(today, body_style))
+    story.append(Spacer(1, 12))
+    
+    # 2. Recipient/company address block
+    story.append(Paragraph(f'Hiring Manager', body_style))
+    story.append(Paragraph(f'{company}', body_style))
+    story.append(Paragraph(f'Re: Application for {title}', body_style))
+    story.append(Spacer(1, 12))
+    
+    # 4. Body paragraphs (split cover letter, strip greeting and any closing)
+    cover_text = data.get('cover_letter', '')
+    paragraphs = cover_text.replace('\\n', '\n').split('\n\n')
+    
+    # Extract salutation if present
+    salutation = ''
+    body_paragraphs = []
+    
+    for para in paragraphs:
+        para = para.strip()
+        if not para:
+            continue
+        para_lower = para.lower()
+        # Salutation — keep
+        if para_lower.startswith('dear ') or para_lower.startswith('to '):
+            salutation = para
+            continue
+        # Any closing line — strip (generator adds standard business closing)
+        if any(phrase in para_lower for phrase in ['regards', 'sincerely', 'best regards', 'best,', 'thank you for', 'respectfully']):
+            continue
+        # Name/contact lines — strip (generator adds standard business closing)
+        if CANDIDATE_NAME.lower() in para_lower or ('mishchenko' in para_lower and not para.endswith('.')):
+            continue
+        body_paragraphs.append(para)
+    
+    # Salutation
+    if salutation:
+        story.append(Paragraph(clean(salutation), body_style))
+        story.append(Spacer(1, 8))
+    else:
+        story.append(Paragraph('Dear Hiring Manager,', body_style))
+        story.append(Spacer(1, 8))
+    
+    # Body
+    for para in body_paragraphs:
+        story.append(Paragraph(clean(para), body_style))
+        story.append(Spacer(1, 8))
+    
+    # 5. Standard business closing — always render this
+    story.append(Spacer(1, 4))
+    story.append(Paragraph('Sincerely,', body_style))
+    story.append(Spacer(1, 12))
+    story.append(Paragraph(CANDIDATE_NAME, body_style))
+    
+    # 6. Enclosure notation
+    story.append(Spacer(1, 12))
+    story.append(Paragraph('<i>Enclosure: Resume</i>', body_style))
+    
+    doc.build(story, onFirstPage=cl_header, onLaterPages=cl_header)
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python3 generate_pdf.py <tailoring_json> [--skip-validation]")
@@ -304,11 +399,16 @@ def main():
             continue
         
         # Gate 2: Human review (LLM) — informational, generates review notes
-        # Try multiple review file naming patterns
+        # Try multiple review file naming patterns (company, company+title)
         safe_co_review = "".join(c for c in company if c.isalnum() or c in " -_").strip()
+        safe_ti_review = "".join(c for c in title if c.isalnum() or c in " -_").strip()
         review_path = OUTPUT_DIR / f"{company}_review.json"
         if not review_path.exists():
             review_path = OUTPUT_DIR / f"{safe_co_review}_review.json"
+        if not review_path.exists():
+            review_path = OUTPUT_DIR / f"{safe_co_review} {safe_ti_review}_review.json"
+        if not review_path.exists():
+            review_path = OUTPUT_DIR / f"{safe_co_review}_{safe_ti_review}_review.json"
         if review_path.exists():
             with open(review_path) as rf:
                 review = json.load(rf)
@@ -383,7 +483,14 @@ def main():
         safe_ti = "".join(c for c in title if c.isalnum() or c in " -_").strip()
         outpath = OUTPUT_DIR / f"{safe_co}_{safe_ti}_2026-07-17.pdf"
         generate_pdf(item, outpath)
-        print(f"    Generated: {outpath.name}")
+        # Save cover letter as PDF
+        cover = item.get('cover_letter', '')
+        if cover:
+            cl_path = OUTPUT_DIR / f"{safe_co}_{safe_ti}_cover_letter.pdf"
+            generate_cover_letter_pdf(item, cl_path)
+            print(f"    Generated: {outpath.name} + cover letter PDF")
+        else:
+            print(f"    Generated: {outpath.name}")
 
 
 if __name__ == "__main__":

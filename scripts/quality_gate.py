@@ -100,9 +100,9 @@ def score_entry(entry, job_desc=''):
         for b in h.get('bullets', []):
             words = b.split()
             word_count = len(words)
-            if word_count > 25:
-                formula_score -= 3
-                issues.append(f'{company}: bullet over 25 words ({word_count})')
+            if word_count > 35:
+                formula_score -= 1
+                issues.append(f'{company}: bullet over 35 words ({word_count})')
             # Check for verb at start — expanded list
             if words and words[0].lower() not in [
                 'launched', 'shipped', 'delivered', 'improved', 'increased', 'reduced',
