@@ -43,8 +43,11 @@ JSpotter/
 │   ├── config.template.json
 │   ├── theme.template.json
 │   ├── tailoring_prompt_template.md
-│   └── review_prompt_template.md
+│   ├── review_prompt_template.md
+│   └── cron_template.md
 ├── docs/                       # Setup and usage documentation
+│   ├── SETUP.md                # Installation and configuration
+│   └── CRON.md                 # Cron job setup and troubleshooting
 ├── CHANGELOG.md                # Release history
 └── README.md
 ```
