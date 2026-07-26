@@ -125,12 +125,11 @@ PDFs are styled according to `theme.json` — fonts, colors, margins, spacing, b
 
 ### 7. Set up daily automation (cron)
 
-Using Hermes cron:
-```
-cronjob action=create schedule="0 9 * * *" name="Daily Job Scan"
-```
-
-The cron job reads `config.json` for keywords and locations automatically.
+See **[docs/CRON.md](CRON.md)** for the full cron setup guide, including:
+- Creating `run_daily.sh` shell wrapper
+- Adding commands to the allowlist
+- Configuring the cron job (schedule, model, provider, delivery)
+- Troubleshooting common issues (truncation, approval prompts, Python conflicts)
 
 ## Pipeline Scripts
 

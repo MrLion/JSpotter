@@ -21,6 +21,10 @@ AI-powered job hunting automation pipeline — LinkedIn search, LLM scoring, res
 
 See [docs/SETUP.md](docs/SETUP.md) for detailed instructions.
 
+## Automation
+
+Daily job search runs automatically via Hermes cron. See [docs/CRON.md](docs/CRON.md) for setup and troubleshooting.
+
 ## Project Structure
 
 ```
