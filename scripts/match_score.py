@@ -231,9 +231,13 @@ def score_years_requirement(desc_lower):
 
 
 def score_location(location_lower, preferred_location=None):
-    """Score location fit (10 pts max). Reads preferred location from config."""
     if preferred_location is None:
-        preferred_location = "Boston"
+        config_path = Path(__file__).parent / "config.json"
+        with open(config_path) as f:
+            config = json.load(f)
+        preferred_location = config.get("scoring", {}).get("preferred_location", "")
+        if not preferred_location:
+            raise ValueError("scoring.preferred_location not found in config.json")
     
     pref_lower = preferred_location.lower()
     pref_parts = pref_lower.split()
