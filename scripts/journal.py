@@ -90,6 +90,18 @@ RESUME_COLUMNS = [
 # Status values for Applications sheet
 STATUS_VALUES = ["Not Applied", "Applied", "Phone Screen", "Interview", "Final Round", "Offer", "Rejected", "Withdrawn"]
 
+# Status color coding for company cell
+STATUS_COLORS = {
+    "Not Applied": PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid"),   # yellow
+    "Applied": PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid"),       # green
+    "Phone Screen": PatternFill(start_color="B3D9FF", end_color="B3D9FF", fill_type="solid"),  # light blue
+    "Interview": PatternFill(start_color="B3D9FF", end_color="B3D9FF", fill_type="solid"),     # blue
+    "Final Round": PatternFill(start_color="B3D9FF", end_color="B3D9FF", fill_type="solid"),   # blue
+    "Offer": PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid"),         # green
+    "Rejected": PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid"),      # red
+    "Withdrawn": PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid"),     # grey
+}
+
 # ─── Styling ───
 
 HEADER_FONT = Font(name="Calibri", bold=True, size=11, color="FFFFFF")
@@ -304,6 +316,8 @@ def add_jobs(jobs_data, path=JOURNAL_PATH, mode="append"):
                 row_data[key] = ""
             elif key == "must_apply_24h":
                 row_data[key] = ""
+            elif key == "status":
+                row_data[key] = job.get("status", "Not Applied")
             else:
                 row_data[key] = job.get(key, "")
 
@@ -314,6 +328,13 @@ def add_jobs(jobs_data, path=JOURNAL_PATH, mode="append"):
         # Format priority cell if set
         if row_data.get("priority") in PRIORITY_COLORS:
             ws.cell(row=next_row, column=_find_col_by_key(JOBS_COLUMNS, "priority")).fill = PRIORITY_COLORS[row_data["priority"]]
+
+        # Apply status color coding to company cell
+        status_val = row_data.get("status", "Not Applied")
+        if status_val in STATUS_COLORS:
+            ws.cell(row=next_row, column=_find_col_by_key(JOBS_COLUMNS, "company")).fill = STATUS_COLORS[status_val]
+            if status_val == "Applied":
+                ws.cell(row=next_row, column=_find_col_by_key(JOBS_COLUMNS, "company")).font = Font(bold=True)
 
         next_row += 1
         added += 1
