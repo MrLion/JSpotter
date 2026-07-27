@@ -74,6 +74,17 @@ EXTRACT_JS = r"""
 })()
 """
 
+# JavaScript to extract the apply URL from a Dice job detail page
+# Returns the company ATS URL or empty string if it redirects to another job board
+APPLY_EXTRACT_JS = r"""
+(() => {
+  const applyLink = Array.from(document.querySelectorAll('a')).find(a => 
+    a.textContent?.trim() === 'Apply' || a.textContent?.trim() === 'Apply Now'
+  );
+  return applyLink ? applyLink.href : '';
+})()
+"""
+
 
 def load_config():
     """Load search config from config.json."""
@@ -117,6 +128,29 @@ def dedupe_jobs(jobs):
             seen.add(key)
             unique.append(j)
     return unique
+
+
+# Job board domains that indicate a syndicated listing, not a company ATS
+# Note: greenhouse.io, lever.co, workday, eightfold.ai, paylocity.com are company ATS platforms, NOT job boards
+JOB_BOARD_DOMAINS = [
+    "efinancialcareers.com",
+    "indeed.com",
+    "glassdoor.com",
+    "ziprecruiter.com",
+    "monster.com",
+    "careerbuilder.com",
+    "simplyhired.com",
+    "lensa.com",
+    "theladders.com",
+]
+
+
+def is_job_board(url):
+    """Check if a URL points to another job board rather than a company ATS."""
+    if not url:
+        return False
+    url_lower = url.lower()
+    return any(domain in url_lower for domain in JOB_BOARD_DOMAINS)
 
 
 def filter_by_keywords(jobs):
@@ -173,18 +207,35 @@ def main():
         print("INSTRUCTIONS:")
         print("1. Login to dice.com (email + password)")
         print("2. Navigate to each search URL")
-        print("3. Scroll down 3-4 times to load more results")
-        print("4. Run EXTRACT_JS to get job listings")
-        print("5. Save results to output/dice_extract.json")
-        print("6. Re-run: python3 search_dice.py --input output/dice_extract.json")
+        print("3. Run EXTRACT_JS to get job listings")
+        print("4. For each job, navigate to its detail page URL")
+        print("5. Click the Apply button — wait for redirect")
+        print("6. Run APPLY_EXTRACT_JS to get the apply URL")
+        print("7. If apply URL is another job board (efinancialcareers, etc.), skip that job")
+        print("8. If apply URL is a company ATS, store it as app_url")
+        print("9. Save results to output/dice_extract.json with app_url field per job")
+        print("10. Re-run: python3 search_dice.py --input output/dice_extract.json")
         print()
         print("EXTRACT_JS:")
         print(EXTRACT_JS)
+        print()
+        print("APPLY_EXTRACT_JS:")
+        print(APPLY_EXTRACT_JS)
         return
 
     # Process extracted jobs
     jobs = dedupe_jobs(jobs)
     jobs = filter_by_keywords(jobs)
+
+    # Filter out jobs where apply URL goes to another job board
+    filtered = []
+    for j in jobs:
+        app_url = j.get("app_url", "")
+        if app_url and is_job_board(app_url):
+            print(f"  Skipped (job board redirect): {j.get('company')} — {j.get('title')}")
+            continue
+        filtered.append(j)
+    jobs = filtered
 
     print(f"After dedup + filter: {len(jobs)} jobs")
 

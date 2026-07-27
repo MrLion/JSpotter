@@ -41,7 +41,7 @@ JOBS_COLUMNS = [
     ("title", "Job Title", 35),
     ("location", "Location", 22),
     ("search_mode", "Source", 10),
-    ("url", "LinkedIn URL", 45),
+    ("url", "Job URL", 45),
     ("match_score", "Match Score", 12),
     ("ats_score", "ATS Score", 12),
     ("missing_skills", "Missing Skills", 30),
@@ -51,6 +51,9 @@ JOBS_COLUMNS = [
     ("priority", "Priority", 10),
 
     ("job_id", "Job ID", 14),
+    ("status", "Status", 16),
+    ("app_url", "App URL", 45),
+    ("date_applied", "Date Applied", 12),
 ]
 
 APPLICATIONS_COLUMNS = [
@@ -68,7 +71,7 @@ APPLICATIONS_COLUMNS = [
     ("rejected_date", "Rejected Date", 12),
     ("rejection_reason", "Rejection Reason", 30),
     ("notes", "Notes", 40),
-    ("url", "LinkedIn URL", 45),
+    ("url", "Job URL", 45),
 ]
 
 RESUME_COLUMNS = [
@@ -196,18 +199,26 @@ def _format_sheet(ws, columns):
 
 
 def add_jobs(jobs_data, path=JOURNAL_PATH, mode="append"):
-    """Add jobs to the Jobs sheet. Skips duplicates by URL."""
+    """Add jobs to the Jobs sheet. Skips duplicates by App URL, then URL, then company+title+location."""
     if not path.exists():
         init_journal(path)
 
     wb = load_workbook(str(path))
     ws = wb["Jobs"]
 
-    # Get existing URLs and Job IDs to avoid duplicates
+    # Get existing entries for dedup
     url_col = _find_col_by_key(JOBS_COLUMNS, "url")
     job_id_col = _find_col_by_key(JOBS_COLUMNS, "job_id")
+    app_url_col = _find_col_by_key(JOBS_COLUMNS, "app_url")
+    company_col = _find_col_by_key(JOBS_COLUMNS, "company")
+    title_col = _find_col_by_key(JOBS_COLUMNS, "title")
+    location_col = _find_col_by_key(JOBS_COLUMNS, "location")
+
     existing_urls = set()
     existing_job_ids = set()
+    existing_app_urls = set()
+    existing_company_title_loc = set()
+
     for row in ws.iter_rows(min_row=2, values_only=False):
         url_val = row[url_col - 1].value
         if url_val:
@@ -215,6 +226,15 @@ def add_jobs(jobs_data, path=JOURNAL_PATH, mode="append"):
         job_id_val = row[job_id_col - 1].value
         if job_id_val:
             existing_job_ids.add(str(job_id_val).strip())
+        app_url_val = row[app_url_col - 1].value if app_url_col <= len(row) else None
+        if app_url_val:
+            existing_app_urls.add(str(app_url_val).strip())
+        company_val = row[company_col - 1].value
+        title_val = row[title_col - 1].value
+        location_val = row[location_col - 1].value
+        if company_val and title_val:
+            key = f"{str(company_val).strip().lower()}|{str(title_val).strip().lower()}|{str(location_val or '').strip().lower()}"
+            existing_company_title_loc.add(key)
 
     # Find next empty row
     next_row = ws.max_row + 1
@@ -227,6 +247,17 @@ def add_jobs(jobs_data, path=JOURNAL_PATH, mode="append"):
 
     for job in jobs_data:
         url = job.get("url", "").strip()
+        app_url = job.get("app_url", "").strip()
+        company = job.get("company", "").strip()
+        title = job.get("title", "").strip()
+        location = job.get("location", "").strip()
+
+        # Dedup by App URL (highest priority — cross-source)
+        if app_url and app_url in existing_app_urls:
+            skipped += 1
+            continue
+
+        # Dedup by source URL
         if url in existing_urls:
             skipped += 1
             continue
@@ -242,6 +273,13 @@ def add_jobs(jobs_data, path=JOURNAL_PATH, mode="append"):
         if job_id and job_id in existing_job_ids:
             skipped += 1
             continue
+
+        # Fallback: dedup by company + title + location (catches cross-source dupes without App URL)
+        if company and title:
+            key = f"{company.lower()}|{title.lower()}|{location.lower()}"
+            if key in existing_company_title_loc:
+                skipped += 1
+                continue
 
         # Map job data to columns
         row_data = {}
@@ -282,6 +320,11 @@ def add_jobs(jobs_data, path=JOURNAL_PATH, mode="append"):
         existing_urls.add(url)
         if job_id:
             existing_job_ids.add(job_id)
+        if app_url:
+            existing_app_urls.add(app_url)
+        if company and title:
+            key = f"{company.lower()}|{title.lower()}|{location.lower()}"
+            existing_company_title_loc.add(key)
 
     # Ensure auto-filters on all sheets
     from openpyxl.utils import get_column_letter
