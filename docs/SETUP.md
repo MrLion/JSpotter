@@ -9,7 +9,7 @@
 
 2. **Required packages**
    ```bash
-   pip install openpyxl reportlab fpdf2 Pillow
+   pip install openpyxl reportlab Pillow
    ```
 
 3. **Hermes Agent** (for LLM scoring and resume tailoring)
@@ -51,7 +51,7 @@ Edit `config.json` to customize:
 | `scoring.preferred_location` | Your preferred location | `"Boston"` |
 | `scoring.candidate_domains` | Your strongest domains | `["AI/ML", "Healthcare"]` |
 | `scoring.domain_weights` | Weight per domain | See config |
-| `resume_tailoring.bullet_max_words` | Max words per bullet | `25` |
+| `resume_tailoring.bullet_max_words` | Max words per bullet | `35` |
 | `resume_tailoring.quality_gate_threshold` | Technical gate minimum score | `75` |
 | `resume_tailoring.human_review_threshold` | LLM review minimum score | `70` |
 | `journal.path` | Path to journal file | `"journal.xlsx"` |
@@ -84,7 +84,7 @@ Edit `theme.json` to customize the resume appearance:
 | `strengths.bullet_char` | Bullet character for strengths | `"•"` |
 | `bullets.char` | Bullet character for highlights | `"–"` |
 | `bullets.indent` | Bullet indent (pts) | `14` |
-| `bullets.max_words` | Max words per bullet | `25` |
+| `bullets.max_words` | Max words per bullet | `35` |
 | `contact_info.line1` | First line of contact info | `"City, State · (xxx) xxx-xxxx · email"` |
 | `contact_info.line2` | Second line (optional) | `"linkedin.com/in/profile"` |
 
@@ -104,12 +104,20 @@ Creates `journal.xlsx` with 4 sheets: Jobs, Applications, Resume Versions, Refer
 # Browser-based LinkedIn search (reads keywords + locations from config.json)
 python3 scripts/search_linkedin.py
 
-# Add results to journal
+# Browser-based Dice search (requires login, extracts company ATS URLs)
+python3 scripts/search_dice.py
+
+# Add results to journal (dedup by App URL, then source URL, then company+title+location)
 python3 scripts/journal.py --add output/linkedin_extract_today.json
 
 # Fetch descriptions and score all new jobs
 python3 scripts/run_scoring.py
 ```
+
+**Cross-source dedup:** Jobs are deduplicated across LinkedIn and Dice using three layers:
+1. **App URL** — company ATS URL (highest priority, available from Dice)
+2. **Source URL** — LinkedIn or Dice job URL
+3. **Company + title + location** — fallback for jobs without App URL (LinkedIn)
 
 ### 6. Generate tailored resumes
 
@@ -136,6 +144,7 @@ See **[docs/CRON.md](CRON.md)** for the full cron setup guide, including:
 | Script | Purpose | Reads config.json | Reads theme.json |
 |--------|---------|-------------------|-------------------|
 | `search_linkedin.py` | Browser-based LinkedIn job search | ✅ keywords, locations | — |
+| `search_dice.py` | Browser-based Dice job search (login required) | ✅ keywords, locations | — |
 | `journal.py` | Journal management (init, add, status) | ✅ journal path | — |
 | `run_scoring.py` | Fetch descriptions + calculate all scores | ✅ priority thresholds | — |
 | `match_score.py` | Match score algorithm | ✅ location, thresholds | — |

@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented here.
 
+## [0.8.0] - 2026-07-27
+
+### Added
+- **Cross-source dedup** via App URL — Dice apply URL extraction identifies company ATS URLs, enabling dedup across LinkedIn and Dice
+- **`search_dice.py`** — Dice.com job search with login, ATS URL extraction, and job board filtering
+- **3-layer dedup** in `journal.py`: App URL → source URL → company+title+location fallback
+- **Job board filter** — Dice postings redirecting to other job boards (efinancialcareers, indeed, etc.) are automatically skipped
+
+### Changed
+- Journal column "LinkedIn URL" renamed to "Job URL" (supports multiple sources)
+- Added `app_url`, `status`, `date_applied` columns to `JOBS_COLUMNS` definition
+- `bullet_max_words` updated from 25 to 35 in docs
+- Removed `fpdf2` from prerequisites (replaced by ReportLab)
+- `search_linkedin.py` and `match_score.py` — removed hardcoded values, now config-driven
+
+### Known Limitations
+- LinkedIn login blocked by bot detection — apply URL not available, falls back to company+title+location dedup
+- Dice apply URL extraction requires visiting each job detail page while logged in
+
 ## [0.7.0] - 2026-07-25
 
 ### Added
