@@ -55,11 +55,36 @@
     "preferred_location": "Boston"
   },
   "resume_tailoring": {
-    "bullet_max_words": 25,
+    "bullet_max_words": 35,
     "quality_gate_threshold": 75,
     "human_review_threshold": 70,
     "max_highlights": 4,
     "max_bullets_per_highlight": 5
+  },
+  "credentials": {
+    "_comment": "Local only — never push to repo. gitignore protects config.json.",
+    "dice": {
+      "email": "your_email@example.com",
+      "password": "***"
+    },
+    "linkedin": {
+      "email": "your_email@example.com",
+      "password": "***"
+    }
+  },
+  "dedup": {
+    "_comment": "Job board domains to filter out during Dice apply URL extraction",
+    "job_board_domains": [
+      "efinancialcareers.com",
+      "indeed.com",
+      "glassdoor.com",
+      "ziprecruiter.com",
+      "monster.com",
+      "careerbuilder.com",
+      "simplyhired.com",
+      "lensa.com",
+      "theladders.com"
+    ]
   },
   "journal": {
     "path": "journal.xlsx",

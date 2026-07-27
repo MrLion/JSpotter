@@ -130,27 +130,17 @@ def dedupe_jobs(jobs):
     return unique
 
 
-# Job board domains that indicate a syndicated listing, not a company ATS
+# Job board domains loaded from config.json at runtime
 # Note: greenhouse.io, lever.co, workday, eightfold.ai, paylocity.com are company ATS platforms, NOT job boards
-JOB_BOARD_DOMAINS = [
-    "efinancialcareers.com",
-    "indeed.com",
-    "glassdoor.com",
-    "ziprecruiter.com",
-    "monster.com",
-    "careerbuilder.com",
-    "simplyhired.com",
-    "lensa.com",
-    "theladders.com",
-]
 
 
-def is_job_board(url):
+def is_job_board(url, config):
     """Check if a URL points to another job board rather than a company ATS."""
     if not url:
         return False
+    job_board_domains = config.get("dedup", {}).get("job_board_domains", [])
     url_lower = url.lower()
-    return any(domain in url_lower for domain in JOB_BOARD_DOMAINS)
+    return any(domain in url_lower for domain in job_board_domains)
 
 
 def filter_by_keywords(jobs):
@@ -205,7 +195,12 @@ def main():
             print(f"  {u['mode']}: {u['url']}")
         print()
         print("INSTRUCTIONS:")
-        print("1. Login to dice.com (email + password)")
+        creds = config.get("credentials", {}).get("dice", {})
+        if creds.get("email"):
+            print(f"1. Login to dice.com ({creds['email']})")
+        else:
+            print("1. Login to dice.com (set credentials.dice in config.json)")
+            return
         print("2. Navigate to each search URL")
         print("3. Run EXTRACT_JS to get job listings")
         print("4. For each job, navigate to its detail page URL")
@@ -231,7 +226,7 @@ def main():
     filtered = []
     for j in jobs:
         app_url = j.get("app_url", "")
-        if app_url and is_job_board(app_url):
+        if app_url and is_job_board(app_url, config):
             print(f"  Skipped (job board redirect): {j.get('company')} — {j.get('title')}")
             continue
         filtered.append(j)
