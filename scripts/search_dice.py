@@ -143,12 +143,15 @@ def is_job_board(url, config):
     return any(domain in url_lower for domain in job_board_domains)
 
 
-def filter_by_keywords(jobs):
-    """Keep jobs that match product manager in title."""
+def filter_by_keywords(jobs, config):
+    """Keep product management roles based on config title_filter_terms."""
+    terms = config.get("search", {}).get("title_filter_terms")
+    if not terms:
+        raise ValueError("search.title_filter_terms not found in config.json")
     filtered = []
     for j in jobs:
         title_lower = j.get("title", "").lower()
-        if "product" in title_lower and "manager" in title_lower:
+        if "product" in title_lower and any(term in title_lower for term in terms):
             filtered.append(j)
     return filtered
 
@@ -220,7 +223,7 @@ def main():
 
     # Process extracted jobs
     jobs = dedupe_jobs(jobs)
-    jobs = filter_by_keywords(jobs)
+    jobs = filter_by_keywords(jobs, config)
 
     # Filter out jobs where apply URL goes to another job board
     filtered = []

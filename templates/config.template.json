@@ -24,7 +24,8 @@
       }
     ],
     "max_results_per_search": 70,
-    "results_file": "output/linkedin_extract_today.json"
+    "results_file": "output/linkedin_extract_today.json",
+    "title_filter_terms": ["manager", "director", "vp", "vice president", "head", "lead", "owner"]
   },
   "scoring": {
     "priority_thresholds": {

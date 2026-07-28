@@ -163,16 +163,15 @@ def dedupe_jobs(jobs):
     return unique
 
 
-def filter_by_keywords(jobs, keywords):
-    """Soft filter: keep jobs that match any keyword in title."""
-    kw_lower = keywords.lower()
-    terms = [t.strip() for t in kw_lower.split() if len(t) > 2]
-    # Keep jobs whose title contains "product" — already filtered by LinkedIn search
-    # This is a secondary filter for quality
+def filter_by_keywords(jobs, keywords, config):
+    """Soft filter: keep product management roles based on config title_filter_terms."""
+    terms = config.get("search", {}).get("title_filter_terms")
+    if not terms:
+        raise ValueError("search.title_filter_terms not found in config.json")
     filtered = []
     for j in jobs:
         title_lower = j.get("title", "").lower()
-        if "product" in title_lower and "manager" in title_lower:
+        if "product" in title_lower and any(term in title_lower for term in terms):
             filtered.append(j)
     return filtered
 
@@ -285,7 +284,7 @@ def main():
     
     # Process extracted jobs
     jobs = dedupe_jobs(jobs)
-    jobs = filter_by_keywords(jobs, args.keywords)
+    jobs = filter_by_keywords(jobs, args.keywords, config)
     
     print(f"After dedup + filter: {len(jobs)} jobs")
     

@@ -34,7 +34,7 @@ CRITICAL STRUCTURE RULES:
 9. Use the candidate's preferred name (see config.json).
 10. Only real experience from the profile — never conflate metrics from one engagement with another. Metrics belong to the engagement they describe. Never rephrase or rename a product/platform to make it sound more relevant to the target job. Describe what it IS, not what sounds good. Job titles MUST match the master profile exactly — never inflate, never change. Dates MUST match the master profile exactly — never change end dates to "Present" or vice versa. Background checks will surface any discrepancy.
 11. Tools section: Include ONLY tool categories relevant to the specific job. Drop categories that have no overlap with job requirements. Return as JSON dict (NOT list), no markdown asterisks.
-12. Include dates on all highlight headers.
+12. Include dates on all highlight headers. NEVER append project tenure dates to individual bullets (e.g., "(Mon YYYY–Mon YYYY)"). Dates belong in headers only.
 13. Use read_file and write_file tools for reading/writing JSON files. Do NOT write custom Python scripts (.py files) to disk. If you must run code, clean up any temp files you create before finishing.
 14. cover_letter: 3-4 paragraphs, professional, no pandering. Do NOT include a closing (no "Sincerely," "Thank you for your consideration," or name at the end) — the PDF generator adds a standard business closing automatically.
 

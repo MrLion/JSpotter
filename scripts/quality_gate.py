@@ -61,7 +61,7 @@ CLIENT_KEYWORDS = {
     'preventric': ['preventric', 'wearable bpm', 'vascular'],
     'cox': ['cox', 'fleet management', 'automotive', '65k+'],
     'cigna': ['cigna', 'medicare advantage', 'hcsc', 'divestiture'],
-    'ge_healthcare': ['ge healthcare', 'edison', 'ultrasound', 'iot', '4m+', 'aws hcls'],
+    'ge_healthcare': ['ge healthcare', 'edison', 'ultrasound', 'iot', '4m+', 'aws hcls', 'fleet management'],
     'vertex': ['vertex', 'tax research', 'ontology', '50k clients'],
     'sole_it': ['sole it', 'messenger', 'photo stock', 'b2b haas'],
     'infinnity': ['infinnity', '10x', 'ehrintegration', '13m patients', 'ambulatory'],
@@ -141,6 +141,11 @@ def score_entry(entry, job_desc=''):
                 if metric in b_lower:
                     for client in mentioned_clients:
                         if client not in valid_sources:
+                            # Skip if the client was matched only via a shared keyword
+                            # (e.g., "fleet management" is both COX and GE Healthcare)
+                            client_specific_kws = [kw for kw in CLIENT_KEYWORDS.get(client, []) if kw not in CLIENT_KEYWORDS.get(valid_sources[0], [])]
+                            if not any(kw in b_lower for kw in client_specific_kws):
+                                continue
                             conflation_score -= 5
                             issues.append(f'{company}: CONFLATION — "{metric}" belongs to {valid_sources} but bullet references "{client}"')
     
@@ -161,6 +166,10 @@ def score_entry(entry, job_desc=''):
             if metric in sentence_lower:
                 for client in mentioned_clients_sentence:
                     if client not in valid_sources:
+                        # Skip if the client was matched only via a shared keyword
+                        client_specific_kws = [kw for kw in CLIENT_KEYWORDS.get(client, []) if kw not in CLIENT_KEYWORDS.get(valid_sources[0], [])]
+                        if not any(kw in sentence_lower for kw in client_specific_kws):
+                            continue
                         conflation_score -= 5
                         issues.append(f'{company}: SUMMARY CONFLATION — "{metric}" belongs to {valid_sources} but sentence references "{client}"')
     
@@ -203,6 +212,14 @@ def score_entry(entry, job_desc=''):
             if not highlights[0].get('intro'):
                 structure_score -= 3
                 issues.append(f'{company}: EPAM entry missing intro line')
+        
+        # Check for project tenure dates appended to bullets (e.g., "(Mar 2024–Nov 2024)")
+        bullet_date_pattern = re.compile(r'\([A-Z][a-z]{2}\s+\d{4}\s*[\u2013\-]\s*[A-Z][a-z]{2}\s+\d{4}\)')
+        for h in highlights:
+            for b in h.get('bullets', []):
+                if bullet_date_pattern.search(b):
+                    structure_score -= 2
+                    issues.append(f'{company}: bullet has project tenure date — remove "(Mon YYYY–Mon YYYY)" from bullets')
     
     structure_score = max(0, structure_score)
     score -= (20 - structure_score)
