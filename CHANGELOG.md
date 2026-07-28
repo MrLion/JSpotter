@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here.
 
+## [0.9.0] - 2026-07-28
+
+### Changed
+- **Title filter broadened** — now includes Director, VP, Head of Product, Lead, Owner roles (was Manager-only)
+- **title_filter_terms moved to config.json** (`search.title_filter_terms`) — no hardcoded fallback, raises ValueError if missing
+- Both `search_linkedin.py` and `search_dice.py` updated
+
+### Added
+- **Quality gate check for project tenure dates** on bullets (-2 pts per occurrence)
+- **Rule 12 updated** in tailoring prompt: "NEVER append project tenure dates to individual bullets"
+
+### Fixed
+- Removed hardcoded `["manager"]` fallback from title filter in both search scripts
+
 ## [0.8.0] - 2026-07-27
 
 ### Added
