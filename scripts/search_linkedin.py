@@ -31,8 +31,8 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 CONFIG_PATH = BASE_DIR / "config.json"
 
 # LinkedIn Jobs search URL template
-# f_WT=2 = Remote filter
-LINKEDIN_SEARCH = "https://www.linkedin.com/jobs/search/?keywords={keywords}&location={location}{remote_filter}"
+# f_WT=2 = Remote filter, sortBy=DD = Date posted (newest first)
+LINKEDIN_SEARCH = "https://www.linkedin.com/jobs/search/?keywords={keywords}&location={location}{remote_filter}&sortBy=DD"
 
 # JavaScript to extract job listings from the page
 EXTRACT_JS = """

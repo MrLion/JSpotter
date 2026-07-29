@@ -117,6 +117,7 @@ def score_entry(entry, job_desc=''):
                 'presented', 'executed', 'implemented', 'prototyped', 'piloted',
                 'architected', 'authored', 'published', 'presented', 'trained',
                 'evaluated', 'measured', 'tested', 'validated', 'released',
+                'incorporated', 'embedded', 'integrated', 'sourced', 'curated',
             ]:
                 formula_score -= 2
                 issues.append(f'{company}: bullet may not start with action verb — "{words[0]}"')
