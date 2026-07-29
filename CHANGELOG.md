@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here.
 
+## [0.10.0] - 2026-07-29
+
+### Changed
+- **LinkedIn search now sorts by date posted** (`sortBy=DD`) — surfaces newest jobs first instead of relevance-ranked results that never changed
+- **Cron prompt updated** — explicit browser step instructions (navigate, dismiss dialog, extract JS, save) so the agent actually browses LinkedIn instead of only running the Python script
+
+### Added
+- **Action verbs expanded** in quality gate — added incorporated, embedded, integrated, sourced, curated
+- **IEC 62304 / ISO 13485** added to master profile (GE Healthcare engagement) — surfaces for medical device roles
+
+### Fixed
+- Cron job reporting "no new jobs" — root cause was relevance sort returning same 112 jobs daily; date sort resolves this
+
 ## [0.9.0] - 2026-07-28
 
 ### Changed
