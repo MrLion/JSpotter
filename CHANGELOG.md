@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here.
 
+## [0.10.1] - 2026-08-01
+
+### Added
+- **TELEGRAM_TEMPLATE.md** added to repo templates
+- **LINKEDIN_IDEAS_TEMPLATE.md** added to repo templates
+
+### Changed
+- **Cron prompt rewritten** — explicit browser step instructions (navigate, dismiss dialog, extract JS, save) so agent actually browses LinkedIn
+- **IEC 62304 / ISO 13485** added to master profile (GE Healthcare engagement)
+
+### Fixed
+- Cron job reporting "no new jobs" — root cause: relevance sort returned same 112 jobs daily; `sortBy=DD` resolves this
+
 ## [0.10.0] - 2026-07-29
 
 ### Changed
