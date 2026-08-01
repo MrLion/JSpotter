@@ -6,7 +6,6 @@ All notable changes to this project are documented here.
 
 ### Added
 - **TELEGRAM_TEMPLATE.md** added to repo templates
-- **LINKEDIN_IDEAS_TEMPLATE.md** added to repo templates
 
 ### Changed
 - **Cron prompt rewritten** — explicit browser step instructions (navigate, dismiss dialog, extract JS, save) so agent actually browses LinkedIn
