@@ -274,12 +274,12 @@ def add_jobs(jobs_data, path=JOURNAL_PATH, mode="append"):
             skipped += 1
             continue
 
-        # Extract job ID from URL
+        # Extract job ID from URL — only if it contains digits (real IDs have numbers)
         job_id = ""
         if url:
-            parts = url.rstrip("/").split("-")
-            if parts:
-                job_id = parts[-1]
+            last_segment = url.rstrip("/").split("/")[-1]
+            if last_segment and any(c.isdigit() for c in last_segment):
+                job_id = last_segment
 
         # Also check by job ID
         if job_id and job_id in existing_job_ids:
