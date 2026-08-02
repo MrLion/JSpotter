@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here.
 
+## [0.10.2] - 2026-08-02
+
+### Changed
+- **Tailoring prompt: JD-in-context approach** — parent agent extracts JD text and passes it directly in subagent context; subagent never reads descriptions_cache.json (1.9MB, 322 entries, exceeds read_file truncation limit)
+- **Rule 13 strengthened** — explicitly bans `execute_code`, `python3 -c`, .py files, temp scripts; allows `search_files` alongside `read_file`/`write_file`
+- **Quality gate: action verbs expanded** — added operated, managed, maintained
+- **LinkedIn ideas template: topic leads, not resume** — posts are community commentary, not personal case studies; pitches must not start with "I"
+- **LinkedIn ideas: source URLs required** — every idea must include a URL to the specific article/paper visited
+- **LinkedIn Post Ideas cron: removed terminal toolset** — only browser + file needed, prevents approval prompts in autonomous runs
+
+### Fixed
+- **Job ID extraction bug in journal.py** — was splitting URLs by "-" and taking last segment; generic words like "Manager" matched across different jobs. Now splits by "/" and only extracts if segment contains digits
+- **Subagents attempting execute_code** — root cause: descriptions_cache.json grew too large for read_file; fixed by passing JD text in context
+
 ## [0.10.1] - 2026-08-01
 
 ### Added
