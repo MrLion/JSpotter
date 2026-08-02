@@ -35,7 +35,7 @@ CRITICAL STRUCTURE RULES:
 10. Only real experience from the profile — never conflate metrics from one engagement with another. Metrics belong to the engagement they describe. Never rephrase or rename a product/platform to make it sound more relevant to the target job. Describe what it IS, not what sounds good. Job titles MUST match the master profile exactly — never inflate, never change. Dates MUST match the master profile exactly — never change end dates to "Present" or vice versa. Background checks will surface any discrepancy.
 11. Tools section: Include ONLY tool categories relevant to the specific job. Drop categories that have no overlap with job requirements. Return as JSON dict (NOT list), no markdown asterisks.
 12. Include dates on all highlight headers. NEVER append project tenure dates to individual bullets (e.g., "(Mon YYYY–Mon YYYY)"). Dates belong in headers only.
-13. Use read_file and write_file tools for reading/writing JSON files. Do NOT write custom Python scripts (.py files) to disk. If you must run code, clean up any temp files you create before finishing.
+13. Use read_file and write_file tools for reading/writing JSON files. Do NOT write or execute custom Python scripts (no `python3 -c`, no .py files, no temp scripts, no execute_code). Use ONLY read_file, write_file, and search_files for all file operations. Pipeline scripts (quality_gate.py, generate_pdf.py, etc.) are run by the parent agent, not by you.
 14. cover_letter: 3-4 paragraphs, professional, no pandering. Do NOT include a closing (no "Sincerely," "Thank you for your consideration," or name at the end) — the PDF generator adds a standard business closing automatically.
 
 Master profile: [PATH TO MASTER_PROFILE.md] (READ THIS — it has the formula-style bullets, tools, and ATS keywords)
@@ -44,8 +44,10 @@ Master profile: [PATH TO MASTER_PROFILE.md] (READ THIS — it has the formula-st
 ## Goal Block (adapt per job)
 
 ```
-Tailor a resume for the [COMPANY] [JOB TITLE] role. Read the master profile at [PATH].
-Read the job description from [JSON CACHE FILE] (find the [COMPANY] entry).
+Tailor a resume for the [COMPANY] [JOB TITLE] role. Read the master profile at [PATH]. The job description is provided below — do NOT read descriptions_cache.json:
+
+JOB DESCRIPTION:
+[JD TEXT GOES HERE — parent agent inserts before dispatching]
 
 Produce a single JSON object with these fields:
 - url, company, title
