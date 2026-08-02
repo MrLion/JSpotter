@@ -57,7 +57,7 @@ Edit `config.json` to customize:
 | `journal.path` | Path to journal file | `"journal.xlsx"` |
 | `resume_dir` | Where tailored resumes go | `"resume/tailored"` |
 
-All settings have defaults — you can start with just keywords and locations.
+All settings are required — scripts raise ValueError if config keys are missing. Start from the template and fill in all values.
 
 ### 3. Configure resume design
 
@@ -88,7 +88,7 @@ Edit `theme.json` to customize the resume appearance:
 | `contact_info.line1` | First line of contact info | `"City, State · (xxx) xxx-xxxx · email"` |
 | `contact_info.line2` | Second line (optional) | `"linkedin.com/in/profile"` |
 
-All design settings have built-in defaults — the resume generates correctly even without `theme.json`.
+All design settings are required — start from `theme.template.json` and fill in all values.
 
 ### 4. Initialize the journal
 
@@ -123,7 +123,12 @@ python3 scripts/run_scoring.py
 
 ```bash
 # Prepare tailoring input for high-priority jobs
-# Then dispatch LLM subagents using templates/tailoring_prompt_template.md
+# Extract JD text from descriptions_cache.json and pass it directly in the
+# subagent context — do NOT have subagents read descriptions_cache.json
+# (the cache file can exceed read_file truncation limits as it grows)
+
+# Dispatch LLM subagents using templates/tailoring_prompt_template.md
+# The parent agent inserts the JD text into the goal block before dispatching
 
 # Generate PDFs with quality gate (reads threshold from config.json)
 python3 scripts/generate_pdf.py output/tailoring_results.json

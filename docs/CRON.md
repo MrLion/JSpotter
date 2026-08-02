@@ -72,13 +72,18 @@ See `TELEGRAM_TEMPLATE.md` for the daily report format. Key rules:
 
 ## LinkedIn Post Ideas
 
-Generates 5 post ideas every Friday based on trending PM/AI topics.
+Generates 5 post ideas every Wednesday based on trending PM/AI topics.
 
-- Schedule: `30 8 * * 5` (Friday 8:30 AM)
+- Schedule: `30 8 * * 3` (Wednesday 8:30 AM)
+- Toolsets: `browser`, `file` (no terminal — runs autonomously, no approval prompts)
 - Sources: Lenny's Newsletter, a16z, Hugging Face, OpenAI, Anthropic
 - Output: saved to `linkedin/ideas_{DATE}.md` and delivered to Telegram
 
-See `LINKEDIN_IDEAS_TEMPLATE.md` for the format.
+Rules:
+- Every idea MUST include a source URL — agent must visit the source site, not invent topics from memory
+- The topic leads — posts are community commentary, not personal case studies
+- Pitches must NOT start with "I" or center on the user's experience
+- See `LINKEDIN_IDEAS_TEMPLATE.md` for the format
 
 ## Troubleshooting
 
