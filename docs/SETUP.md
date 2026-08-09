@@ -158,6 +158,25 @@ See **[docs/CRON.md](CRON.md)** for the full cron setup guide, including:
 | `generate_pdf.py` | PDF generation with quality gate | ✅ output dir | ✅ all design |
 | `quality_gate.py` | Technical quality scoring (Gate 1) | ✅ quality threshold | — |
 | `validate_tailoring.py` | Structural validation + auto-fix | — | — |
+| `journal.py` (validate) | Journal row integrity validation | — | — |
+
+## Scoring
+
+### Match Score (0-100)
+| Component | Max Pts | Description |
+|-----------|---------|-------------|
+| Domain match | 35 | Weighted domain keyword overlap (AI/ML, Healthcare, Finance, etc.) |
+| Skill match | 20 | Skill category overlap (PM, AI/ML, Methodology, Technical, etc.) |
+| Seniority | 15 | Title-based seniority fit |
+| Years requirement | 10 | Years of experience match |
+| Location | 10 | Preferred location match |
+| Entrepreneurship | 5 | Founder/entrepreneur experience |
+| Certification gap | -15 | Deducts 5pts per cert in JD but missing from profile (capped at -15). Checks: CFA, PMP, AIPMM, SAFe, POPM, CPA, CISSP, AWS/Azure/GCP Certified, PHR, SHRM, Six Sigma, ITIL |
+
+### Priority Thresholds (configurable)
+- **High:** ≥80
+- **Medium:** 65-79
+- **Low:** <65
 
 ## Quality Gates
 
