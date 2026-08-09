@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented here.
 
+## [0.11.0] - 2026-08-08
+
+### Added
+- **Certification gap scoring** — deducts 5pts per cert in JD but missing from profile (capped at -15). Checks CFA, PMP, AIPMM, SAFe, POPM, CPA, CISSP, AWS/Azure/GCP Certified, PHR, SHRM, Six Sigma, ITIL
+- **Journal validation** — `validate_journal_rows()` checks Job ID, Status, Priority, Date Applied, App URL integrity after every `add_jobs()` call
+- **Scoring breakdown table** in SETUP.md
+
+### Fixed
+- **Job ID extraction bug** — was splitting URLs by "-" producing generic words like "Manager"; now splits by "/" and only extracts segments with digits
+- **11 journal rows with wrong Job IDs** — LinkedIn URLs as Job IDs (8 rows) and Dice column shifts (3 rows) corrected
+- **27 broken Dice staffing firm rows** — scored at near-zero with no JD cached, deleted
+
+### Changed
+- **Match score now clamped to 0-100** (was 1-100) — certification penalties can reduce below previous floor
+- **State Street** match score: 93→88 (CFA gap)
+- **TJX** match score: 93→83 (SAFe + POPM gaps)
+
 ## [0.10.2] - 2026-08-02
 
 ### Changed
