@@ -354,9 +354,58 @@ def add_jobs(jobs_data, path=JOURNAL_PATH, mode="append"):
         max_col = ws_filter.max_column
         ws_filter.auto_filter.ref = f'A1:{get_column_letter(max_col)}1'
     
+    # Validate all rows before saving
+    errors = validate_journal_rows(ws)
+    if errors:
+        print(f"VALIDATION WARNINGS ({len(errors)}):")
+        for e in errors:
+            print(f"  {e}")
+    
     wb.save(str(path))
     print(f"Added {added} jobs, skipped {skipped} duplicates")
     return added, skipped
+
+
+def validate_journal_rows(ws):
+    """Validate journal rows for data integrity. Returns list of error strings."""
+    errors = []
+    valid_statuses = {"Not Applied", "Applied", "Interview", "Rejected", "Closed", "Withdrawn", None, ""}
+    valid_priorities = {"High", "Medium", "Low", None, ""}
+    
+    for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=False), start=2):
+        company = str(row[1].value) if row[1].value else ""
+        title = str(row[2].value)[:40] if row[2].value else ""
+        row_label = f"Row {row_idx} ({company}/{title})"
+        
+        # Job ID (col 14) — should be numeric ID or UUID, never a URL or priority word
+        job_id = str(row[13].value) if row[13].value else ""
+        if job_id:
+            if job_id.startswith("http"):
+                errors.append(f"{row_label}: Job ID contains URL instead of ID — {job_id[:60]}")
+            elif job_id in ("Low", "High", "Medium", "New", "Not Applied", "Applied", "Interview", "Rejected"):
+                errors.append(f"{row_label}: Job ID contains '{job_id}' — column shift detected")
+        
+        # Status (col 15) — must be a valid status
+        status = str(row[14].value) if row[14].value else ""
+        if status and status not in valid_statuses:
+            errors.append(f"{row_label}: Status='{status}' — not a valid status")
+        
+        # Priority (col 13) — must be High/Medium/Low or empty
+        priority = str(row[12].value) if row[12].value else ""
+        if priority and priority not in valid_priorities:
+            errors.append(f"{row_label}: Priority='{priority[:40]}' — not a valid priority level")
+        
+        # Date Applied (col 17) — should be a date or None, not a URL
+        date_applied = str(row[16].value) if row[16].value else ""
+        if date_applied and date_applied.startswith("http"):
+            errors.append(f"{row_label}: Date Applied contains URL instead of date — {date_applied[:60]}")
+        
+        # App URL (col 16) — should be a URL or None, not a status word
+        app_url = str(row[15].value) if row[15].value else ""
+        if app_url and app_url in ("New", "Not Applied", "Applied", "Low", "High", "Medium"):
+            errors.append(f"{row_label}: App URL='{app_url}' — not a valid URL")
+    
+    return errors
 
 
 def show_status(path=JOURNAL_PATH):
