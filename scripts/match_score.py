@@ -144,6 +144,11 @@ SKILL_CATEGORIES = {
         "lead", "director", "principal", "staff", "mentor", "cross-cultural",
         "distributed team", "stakeholder management", "co-founder",
     ],
+    "Certifications & Qualifications": [
+        "aipmm", "certified product manager", "safe", "popm", "pmp",
+        "cfa", "mba", "m.sc", "master of science", "bachelor",
+        "ai literacy", "product owner/product manager", "product owner",
+    ],
 }
 
 
@@ -194,6 +199,21 @@ def score_skill_match(desc_lower, profile_lower):
         return 0
 
     return int(matched / total * 20)
+
+
+def score_certification_gap(desc_lower, profile_lower):
+    """Deduct points for certifications required in JD but missing from profile.
+    Returns negative points (0 to -15)."""
+    CERT_KEYWORDS = [
+        "cfa", "pmp", "aipmm", "safe", "popm", "cpa", "cissp",
+        "aws certified", "azure certified", "google cloud certified",
+        "phr", "shrm", "six sigma", "itil",
+    ]
+    deductions = 0
+    for cert in CERT_KEYWORDS:
+        if cert in desc_lower and cert not in profile_lower:
+            deductions -= 5
+    return max(-15, deductions)
 
 
 def score_seniority(title_lower):
@@ -289,8 +309,11 @@ def calculate_match_score(job, description, profile_text):
     # 6. Entrepreneurship (5 pts)
     entre_score = score_entrepreneurship(desc_lower)
 
-    total = domain_score + skill_score + seniority_score + years_score + location_score + entre_score
-    total = min(100, total)
+    # 7. Certification gap (0 to -15 pts)
+    cert_penalty = score_certification_gap(desc_lower, profile_lower)
+
+    total = domain_score + skill_score + seniority_score + years_score + location_score + entre_score + cert_penalty
+    total = max(0, min(100, total))
 
     details = {
         "domain_score": domain_score,
@@ -299,6 +322,7 @@ def calculate_match_score(job, description, profile_text):
         "years_score": years_score,
         "location_score": location_score,
         "entrepreneurship_score": entre_score,
+        "certification_penalty": cert_penalty,
         "matched_domains": matched_domains,
         "missing_domains": missing_domains,
     }
