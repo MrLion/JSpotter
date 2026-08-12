@@ -36,7 +36,7 @@ CRITICAL STRUCTURE RULES:
 11. Tools section: Include ONLY tool categories relevant to the specific job. Drop categories that have no overlap with job requirements. Return as JSON dict (NOT list), no markdown asterisks.
 12. Include dates on all highlight headers. NEVER append project tenure dates to individual bullets (e.g., "(Mon YYYY–Mon YYYY)"). Dates belong in headers only.
 13. Use read_file and write_file tools for reading/writing JSON files. Do NOT write or execute custom Python scripts (no `python3 -c`, no .py files, no temp scripts, no execute_code). Use ONLY read_file, write_file, and search_files for all file operations. Pipeline scripts (quality_gate.py, generate_pdf.py, etc.) are run by the parent agent, not by you.
-14. cover_letter: 3-4 paragraphs, professional, no pandering. Do NOT include a closing (no "Sincerely," "Thank you for your consideration," or name at the end) — the PDF generator adds a standard business closing automatically.
+14. cover_letter: 3-4 paragraphs, professional, no pandering. Do NOT include a closing (no "Sincerely," "Thank you for your consideration," or name at the end) — the PDF generator adds a standard business closing automatically. Do NOT include date, company name, or "Re: Application for..." header lines — the PDF generator adds them automatically. Start with "Dear Hiring Manager," and end with the last paragraph.
 
 Master profile: [PATH TO MASTER_PROFILE.md] (READ THIS — it has the formula-style bullets, tools, and ATS keywords)
 ```
