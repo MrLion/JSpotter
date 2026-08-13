@@ -479,14 +479,21 @@ def main():
             else:
                 print(f'  ✓ {company} (tech={qscore} HR={hr_score} HM={hm_score})')
         
+        # Extract version from input filename (e.g. tailoring_athenahealth_v2.json → v2)
+        import re
+        input_name = Path(filepath_arg).stem
+        version_match = re.search(r'(_v\d+)$', input_name)
+        version_suffix = version_match.group(1) if version_match else ''
+        
         safe_co = "".join(c for c in company if c.isalnum() or c in " -_").strip()
         safe_ti = "".join(c for c in title if c.isalnum() or c in " -_").strip()
-        outpath = OUTPUT_DIR / f"{safe_co}_{safe_ti}_2026-07-17.pdf"
+        safe_name = "".join(c for c in CANDIDATE_NAME if c.isalnum() or c in " -_").strip()
+        outpath = OUTPUT_DIR / f"{safe_name}_{safe_co}_{safe_ti}{version_suffix}.pdf"
         generate_pdf(item, outpath)
         # Save cover letter as PDF
         cover = item.get('cover_letter', '')
         if cover:
-            cl_path = OUTPUT_DIR / f"{safe_co}_{safe_ti}_cover_letter.pdf"
+            cl_path = OUTPUT_DIR / f"{safe_name}_{safe_co}_{safe_ti}{version_suffix}_cover_letter.pdf"
             generate_cover_letter_pdf(item, cl_path)
             print(f"    Generated: {outpath.name} + cover letter PDF")
         else:
