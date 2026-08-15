@@ -24,10 +24,10 @@ All notable changes to this project are documented here.
 - **Cover letter duplicate header** — removed date/company/Re: block from cover letter text (PDF generator handles it)
 
 ### Changed
-- **Repligen Corporation** match score: 84 (High) → 60 (Low) — Life Sciences/Bioprocessing domain correctly flagged as missing
-- **Publicis Sapient** match score: 87 (High) → 72 (Medium) — Capital Markets domain correctly flagged as missing
-- **Koyfin** match score: 98 (High) → 78 (Medium) — Capital Markets domain correctly flagged as missing
-- **LinkedIn search locations** — removed Greater Boston, now USA only (remote + hybrid + on-site)
+- **Bioprocessing role** match score: 84 (High) → 60 (Low) — Life Sciences/Bioprocessing domain correctly flagged as missing
+- **Capital markets role 1** match score: 87 (High) → 72 (Medium) — Capital Markets domain correctly flagged as missing
+- **Capital markets role 2** match score: 98 (High) → 78 (Medium) — Capital Markets domain correctly flagged as missing
+- **LinkedIn search locations** — removed metro-specific filter, now USA only (remote + hybrid + on-site)
 - **config.json domain_weights** — updated to include Capital Markets and Life Sciences/Bioprocessing with correct names
 
 ## [0.11.0] - 2026-08-08
