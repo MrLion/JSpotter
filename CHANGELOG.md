@@ -9,7 +9,7 @@ All notable changes to this project are documented here.
 - **Life Sciences/Bioprocessing domain** — weight 12, `has_in_profile: false`. Keywords: bioprocessing, chromatography, affinity ligands, resin, protein purification, downstream processing, biologics, biopharmaceutical, fermentation, cell culture, purification, GMP, upstream processing, drug substance, drug product
 - **`update_status()` function in journal.py** — single function for status changes; updates Status + Last Updated columns, sets Date Applied, color-codes company cell, auto-archives PDFs/TXTs to `archived/` for Rejected/Closed/Withdrawn
 - **Last Updated column** in journal (col 18) — tracks date of last status change
-- **Candidate name in PDF filenames** — e.g., `George Mishchenko_Company_Title_v1.pdf`
+- **Candidate name in PDF filenames** — e.g., `Candidate_Name_Company_Title_v1.pdf`
 - **Tailoring prompt rule 14 updated** — cover letter must NOT include date/company/Re: header (PDF generator adds them)
 - **Job hunting pipeline skill** — saved as reusable skill with full pipeline steps, file organization, and common pitfalls
 
