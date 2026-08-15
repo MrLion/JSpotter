@@ -2,6 +2,32 @@
 
 All notable changes to this project are documented here.
 
+## [0.12.0] - 2026-08-15
+
+### Added
+- **Capital Markets domain** — split from Finance; weight 12, `has_in_profile: false`. Keywords: trading, capital markets, investment, portfolio management, Charles River, Aladdin, Simcorp, fixed income, buy-side, sell-side, asset manager, hedge fund, investment bank, trading lifecycle, order management
+- **Life Sciences/Bioprocessing domain** — weight 12, `has_in_profile: false`. Keywords: bioprocessing, chromatography, affinity ligands, resin, protein purification, downstream processing, biologics, biopharmaceutical, fermentation, cell culture, purification, GMP, upstream processing, drug substance, drug product
+- **`update_status()` function in journal.py** — single function for status changes; updates Status + Last Updated columns, sets Date Applied, color-codes company cell, auto-archives PDFs/TXTs to `archived/` for Rejected/Closed/Withdrawn
+- **Last Updated column** in journal (col 18) — tracks date of last status change
+- **Candidate name in PDF filenames** — e.g., `George Mishchenko_Company_Title_v1.pdf`
+- **Tailoring prompt rule 14 updated** — cover letter must NOT include date/company/Re: header (PDF generator adds them)
+- **Job hunting pipeline skill** — saved as reusable skill with full pipeline steps, file organization, and common pitfalls
+
+### Fixed
+- **Domain scoring: word boundary matching** — keywords now use `re.search(r'\b...\b')` instead of `kw in desc_lower`; fixes "iot" matching inside "biotechnology", "equity" matching in compensation text
+- **Removed "equity" from Capital Markets keywords** — too ambiguous (stock compensation vs equity markets)
+- **Cache overwrite guard in run_scoring.py** — `fetch_job_description()` no longer overwrites existing cached JDs
+- **Domain definitions moved from match_score.py to config.json** — all domain keywords, weights, and has_in_profile flags are now config-driven
+- **Review JSON/TXT file organization** — review JSONs in `tailored/reviews/`, review notes TXT in `tailored/` or `tailored/applied/`, rejected job files in `tailored/archived/`
+- **Cover letter duplicate header** — removed date/company/Re: block from cover letter text (PDF generator handles it)
+
+### Changed
+- **Repligen Corporation** match score: 84 (High) → 60 (Low) — Life Sciences/Bioprocessing domain correctly flagged as missing
+- **Publicis Sapient** match score: 87 (High) → 72 (Medium) — Capital Markets domain correctly flagged as missing
+- **Koyfin** match score: 98 (High) → 78 (Medium) — Capital Markets domain correctly flagged as missing
+- **LinkedIn search locations** — removed Greater Boston, now USA only (remote + hybrid + on-site)
+- **config.json domain_weights** — updated to include Capital Markets and Life Sciences/Bioprocessing with correct names
+
 ## [0.11.0] - 2026-08-08
 
 ### Added
