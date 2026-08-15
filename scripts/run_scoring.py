@@ -154,8 +154,8 @@ def main():
                 job = future_to_job[future]
                 try:
                     desc = future.result()
-                    if desc:
-                        descriptions[job["url"]] = desc
+                    if desc and j["url"] not in descriptions:
+                        descriptions[j["url"]] = desc
                         fetched += 1
                 except Exception:
                     pass
@@ -168,7 +168,7 @@ def main():
             print(f"  Retrying {len(still_missing)} failed fetches...")
             for j in still_missing:
                 desc = fetch_job_description(j["url"], timeout=30)
-                if desc:
+                if desc and j["url"] not in descriptions:
                     descriptions[j["url"]] = desc
                 time.sleep(2)  # slow pacing to avoid LinkedIn rate limits
 

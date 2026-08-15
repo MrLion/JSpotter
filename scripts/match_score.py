@@ -76,8 +76,16 @@ DOMAINS = {
     "Finance": {
         "weight": 8,
         "has_in_profile": True,
-        "keywords": ["finance", "financial", "fintech", "banking", "payment", "trading",
-                     "treasury", "capital", "investment", "compliance", "regulatory"],
+        "keywords": ["finance", "financial", "fintech", "banking", "payment",
+                     "treasury", "compliance", "regulatory"],
+    },
+    "Capital Markets": {
+        "weight": 12,
+        "has_in_profile": False,
+        "keywords": ["trading", "capital markets", "investment", "portfolio management",
+                     "charles river", "aladdin", "simcorp", "fixed income",
+                     "buy-side", "sell-side", "asset manager", "hedge fund",
+                     "investment bank", "trading lifecycle", "order management"],
     },
     "Enterprise/B2B": {
         "weight": 4,
@@ -108,6 +116,14 @@ DOMAINS = {
         "has_in_profile": False,
         "keywords": ["mobile", "ios", "android", "hardware", "embedded", "firmware",
                      "device", "iot", "sensors"],
+    },
+    "Life Sciences/Bioprocessing": {
+        "weight": 12,
+        "has_in_profile": False,
+        "keywords": ["bioprocessing", "chromatography", "affinity ligands", "resin",
+                     "protein purification", "downstream processing", "biologics",
+                     "biopharmaceutical", "fermentation", "cell culture", "purification",
+                     "gmp", "upstream processing", "drug substance", "drug product"],
     },
 }
 
@@ -159,12 +175,13 @@ def score_domain_match(desc_lower, profile_lower):
     matched_domains = []
     missing_domains = []
 
+    import re
     for domain_name, info in DOMAINS.items():
         weight = info["weight"]
         has_in_profile = info["has_in_profile"]
         keywords = info["keywords"]
 
-        job_has = any(kw in desc_lower for kw in keywords)
+        job_has = any(re.search(r'\b' + re.escape(kw) + r'\b', desc_lower) for kw in keywords)
 
         if job_has:
             total_weight += weight
