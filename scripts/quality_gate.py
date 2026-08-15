@@ -5,7 +5,7 @@ Resume Quality Gate — scores tailored resume JSON and rejects low-quality entr
 Scoring (100 pts):
 1. Formula compliance (25 pts) — every bullet has verb + product + scope + result/method
 2. No conflation (20 pts) — metrics not mismatched across engagements
-3. Structure rules (20 pts) — EPAM first, correct order, intro line, no bad entries
+3. Structure rules (20 pts) — first career entry first, correct order, intro line, no bad entries
 4. No pandering / direct employment framing (15 pts)
 5. ATS keyword match (10 pts) — keywords present in job posting
 6. Summary quality (10 pts) — 2-3 sentences, plain tone, no claims
@@ -22,70 +22,26 @@ import sys
 import re
 from pathlib import Path
 
-BAD_KEYWORDS = ['Sole Proprietor', 'Entrepreneur', 'Agentic Trading', 'Agentic Systems']
-PANDERING = ['directly relevant to', 'well-suited for', 'perfectly aligned', 'ideal candidate', 'applicable to']
-
 # Load candidate config
 try:
     with open(Path(__file__).parent / "config.json") as f:
         _cfg = json.load(f)
-    CANDIDATE_FULL_NAME = _cfg.get("candidate", {}).get("full_name", "")
+    _cand = _cfg.get("candidate", {})
+    CANDIDATE_FULL_NAME = _cand.get("full_name", "")
+    BAD_KEYWORDS = _cand.get("bad_keywords", [])
+    PANDERING = _cand.get("pandering_phrases", [])
+    METRIC_TO_SOURCE = _cand.get("conflation_metrics", {})
+    CLIENT_KEYWORDS = _cand.get("client_keywords", {})
+    CLIENT_NAMES_IN_PROFILE = _cand.get("client_names_in_profile", {})
+    CLIENT_EMPLOYMENT_REGEX = _cand.get("client_employment_regex", "")
 except Exception:
     CANDIDATE_FULL_NAME = ""
-
-# Metrics that belong to specific engagements
-METRIC_TO_SOURCE = {
-    '13m patients': ['infinnity', 'google'],
-    '13 million': ['infinnity', 'google'],
-    '61%': ['google'],
-    '91%': ['google'],
-    '$30m': ['google'],
-    '$30 million': ['google'],
-    '10x': ['infinnity'],
-    '10 times': ['infinnity'],
-    '3,500': ['infinnity'],
-    '10,000+': ['infinnity'],
-    '2,000+': ['sole_it'],
-    '30% inbound': ['sole_it'],
-    '9m daily': ['walgreens'],
-    '8,000 stores': ['walgreens'],
-    '65k+': ['cox'],
-    '70% adoption': ['vertex'],
-    '50k clients': ['vertex'],
-    '95% cost': ['ge_healthcare'],
-    '$70m': ['ge_healthcare'],
-    '4m+': ['ge_healthcare'],
-    '4 million': ['ge_healthcare'],
-    '80% nps': ['preventric'],
-    '10%': ['cox'],
-    '35% to 75%': ['cox'],
-    '40%': ['walgreens'],
-    '40k+': ['walgreens'],
-}
-
-CLIENT_KEYWORDS = {
-    'google': ['google', 'corpfinance', 'docce'],
-    'walgreens': ['walgreens', 'pharmacy chain', '9m daily', '8,000 stores'],
-    'preventric': ['preventric', 'wearable bpm', 'vascular'],
-    'cox': ['cox', 'fleet management', 'automotive', '65k+'],
-    'cigna': ['cigna', 'medicare advantage', 'hcsc', 'divestiture'],
-    'ge_healthcare': ['ge healthcare', 'edison', 'ultrasound', 'iot', '4m+', 'aws hcls', 'fleet management'],
-    'vertex': ['vertex', 'tax research', 'ontology', '50k clients'],
-    'sole_it': ['sole it', 'messenger', 'photo stock', 'b2b haas'],
-    'infinnity': ['infinnity', '10x', 'ehrintegration', '13m patients', 'ambulatory'],
-}
-
-CLIENT_NAMES_IN_PROFILE = {
-    'google': 'Google CorpFinance',
-    'walgreens': 'Walgreens',
-    'preventric': 'Preventric',
-    'cox': 'COX Automotive',
-    'cigna': 'Cigna',
-    'ge_healthcare': 'GE Healthcare',
-    'vertex': 'Vertex',
-    'sole_it': 'Sole IT',
-    'infinnity': 'Infinnity',
-}
+    BAD_KEYWORDS = []
+    PANDERING = []
+    METRIC_TO_SOURCE = {}
+    CLIENT_KEYWORDS = {}
+    CLIENT_NAMES_IN_PROFILE = {}
+    CLIENT_EMPLOYMENT_REGEX = ""
 
 
 def score_entry(entry, job_desc=''):
@@ -152,7 +108,7 @@ def score_entry(entry, job_desc=''):
                     for client in mentioned_clients:
                         if client not in valid_sources:
                             # Skip if the client was matched only via a shared keyword
-                            # (e.g., "fleet management" is both COX and GE Healthcare)
+                            # (e.g., a keyword may match multiple engagements)
                             client_specific_kws = [kw for kw in CLIENT_KEYWORDS.get(client, []) if kw not in CLIENT_KEYWORDS.get(valid_sources[0], [])]
                             if not any(kw in b_lower for kw in client_specific_kws):
                                 continue
@@ -192,10 +148,12 @@ def score_entry(entry, job_desc=''):
         structure_score -= 20
         issues.append(f'{company}: no highlights')
     else:
+        career_order = _cand.get("career_order", [])
+        first_keywords = career_order[0].get("keywords", []) if career_order else []
         first_header = highlights[0].get('header', '')
-        if 'EPAM' not in first_header:
+        if not any(kw in first_header for kw in first_keywords):
             structure_score -= 10
-            issues.append(f'{company}: EPAM is not first highlight')
+            issues.append(f'{company}: first career entry is not first highlight')
         
         # Check for bad entries
         for h in highlights:
@@ -205,23 +163,22 @@ def score_entry(entry, job_desc=''):
                     structure_score -= 5
                     issues.append(f'{company}: bad entry — "{header}"')
         
-        # Check career order
+        # Check career order (from config)
         headers = [h.get('header', '') for h in highlights]
-        sole_idx = infinnity_idx = None
-        for idx, h in enumerate(headers):
-            if 'Sole IT' in h or 'Principal Product Manager' in h:
-                sole_idx = idx
-            if 'Infinnity' in h:
-                infinnity_idx = idx
-        if sole_idx is not None and infinnity_idx is not None and infinnity_idx < sole_idx:
-            structure_score -= 5
-            issues.append(f'{company}: wrong order — Infinnity before Sole IT')
+        for i in range(len(career_order) - 1):
+            entry_a = career_order[i]
+            entry_b = career_order[i + 1]
+            idx_a = next((idx for idx, h in enumerate(headers) if any(kw in h for kw in entry_a.get("keywords", []))), None)
+            idx_b = next((idx for idx, h in enumerate(headers) if any(kw in h for kw in entry_b.get("keywords", []))), None)
+            if idx_a is not None and idx_b is not None and idx_b < idx_a:
+                structure_score -= 5
+                issues.append(f'{company}: wrong career order — {entry_b.get("keywords", ["?"])[0]} before {entry_a.get("keywords", ["?"])[0]}')
         
-        # Check EPAM intro
-        if highlights and 'EPAM' in highlights[0].get('header', ''):
+        # Check first entry intro
+        if highlights and any(kw in highlights[0].get('header', '') for kw in first_keywords):
             if not highlights[0].get('intro'):
                 structure_score -= 3
-                issues.append(f'{company}: EPAM entry missing intro line')
+                issues.append(f'{company}: first entry missing intro line')
         
         # Check for project tenure dates appended to bullets (e.g., "(Mar 2024–Nov 2024)")
         bullet_date_pattern = re.compile(r'\([A-Z][a-z]{2}\s+\d{4}\s*[\u2013\-]\s*[A-Z][a-z]{2}\s+\d{4}\)')
@@ -242,7 +199,7 @@ def score_entry(entry, job_desc=''):
             issues.append(f'{company}: pandering phrase — "{phrase}"')
     
     # Check summary for direct employment framing
-    if re.search(r'\bat (Google|Walgreens|Cigna|COX|GE Healthcare|Preventric|Vertex)\b', summary):
+    if CLIENT_EMPLOYMENT_REGEX and re.search(CLIENT_EMPLOYMENT_REGEX, summary):
         pander_score -= 5
         issues.append(f'{company}: summary implies direct employment at client')
     

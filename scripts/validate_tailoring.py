@@ -3,13 +3,13 @@
 Resume Tailoring Validator — validates LLM-generated tailoring JSON before generating PDFs.
 
 Checks:
-1. EPAM is first highlight entry and is ONE employer (no client projects as separate entries)
-2. Career order: EPAM → Sole IT → Infinnity (chronological descending)
+1. First career entry is first highlight (no client projects as separate entries)
+2. Career order validated from config.json
 3. No sole proprietor / entrepreneur / agentic trading entries
 4. Bullets ≤ 15 words
 5. Strength labels ≤ 4 words
 6. Summary ≤ 3 sentences
-7. No client-name prefixes ("Google GenAI:", "Walgreens:")
+7. No client-name prefixes in bullets (client names from config)
 8. No pandering phrases ("directly relevant to", "well-suited for")
 9. Uses preferred name, not full legal name
 10. Cover letter has 3-4 body paragraphs
@@ -38,10 +38,12 @@ _CANDIDATE = load_candidate_config()
 CAREER_ORDER = _CANDIDATE.get("career_order", [])
 CONFLATION_METRICS = _CANDIDATE.get("conflation_metrics", {})
 CLIENT_KEYWORDS = _CANDIDATE.get("client_keywords", {})
+BAD_KEYWORDS = _CANDIDATE.get("bad_keywords", ["Sole Proprietor", "Entrepreneur", "Agentic Trading", "Agentic Systems"])
+PANDERING = _CANDIDATE.get("pandering_phrases", ["directly relevant to", "well-suited for", "perfectly aligned", "ideal candidate"])
 
-BAD_KEYWORDS = ['Sole Proprietor', 'Entrepreneur', 'Agentic Trading', 'Agentic Systems']
-PANDERING = ['directly relevant to', 'well-suited for', 'perfectly aligned', 'ideal candidate']
-CLIENT_PREFIX_RE = re.compile(r'^(Google|Walgreens|Preventric|Cigna|GE Healthcare|COX)\s*[\-:]', re.I)
+_client_names = list(_CANDIDATE.get("client_names_in_profile", {}).values())
+_client_prefix_pattern = r'^(' + '|'.join(re.escape(n) for n in _client_names) + r')\s*[\-:]' if _client_names else r'$^'
+CLIENT_PREFIX_RE = re.compile(_client_prefix_pattern, re.I)
 
 REQUIRED_FIELDS = ['url', 'company', 'title', 'tailored_summary', 'tailored_strengths',
                    'tailored_highlights', 'ats_keywords_injected', 'highlights_changed_summary', 'cover_letter']
@@ -58,11 +60,12 @@ def validate_entry(entry, idx):
     
     highlights = entry.get('tailored_highlights', [])
     
-    # 2. EPAM must be first
-    if highlights:
+    # 2. First career entry must be first
+    first_keywords = CAREER_ORDER[0].get("keywords", []) if CAREER_ORDER else []
+    if highlights and first_keywords:
         first_header = highlights[0].get('header', '')
-        if 'EPAM' not in first_header:
-            errors.append(f'{company}: EPAM is not the first highlight entry (got "{first_header}")')
+        if not any(kw in first_header for kw in first_keywords):
+            errors.append(f'{company}: first career entry is not first highlight (got "{first_header}")')
     
     # 3. No bad entries
     for h in highlights:
@@ -71,16 +74,15 @@ def validate_entry(entry, idx):
             if kw in header:
                 errors.append(f'{company}: bad entry found — "{header}"')
     
-    # 4. Career order check
+    # 4. Career order check (from config)
     headers = [h.get('header', '') for h in highlights]
-    sole_idx = infinnity_idx = None
-    for i, h in enumerate(headers):
-        if 'Sole IT' in h or 'Senior Product Consultant' in h or 'Senior product consultant' in h:
-            sole_idx = i
-        if 'Infinnity' in h:
-            infinnity_idx = i
-    if sole_idx is not None and infinnity_idx is not None and infinnity_idx < sole_idx:
-        errors.append(f'{company}: wrong order — Infinnity (pos {infinnity_idx}) before Sole IT (pos {sole_idx})')
+    for i in range(len(CAREER_ORDER) - 1):
+        entry_a = CAREER_ORDER[i]
+        entry_b = CAREER_ORDER[i + 1]
+        idx_a = next((j for j, h in enumerate(headers) if any(kw in h for kw in entry_a.get("keywords", []))), None)
+        idx_b = next((j for j, h in enumerate(headers) if any(kw in h for kw in entry_b.get("keywords", []))), None)
+        if idx_a is not None and idx_b is not None and idx_b < idx_a:
+            errors.append(f'{company}: wrong career order — {entry_b.get("keywords", ["?"])[0]} (pos {idx_b}) before {entry_a.get("keywords", ["?"])[0]} (pos {idx_a})')
     
     # 5. No client-name prefixes in bullets
     for h in highlights:
