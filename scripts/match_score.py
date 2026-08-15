@@ -55,77 +55,23 @@ BASE_DIR = Path(__file__).parent
 JOURNAL = BASE_DIR / "journal.xlsx"
 PROFILE_PATH = BASE_DIR / "resume" / "MASTER_PROFILE.md"
 DESCS_PATH = BASE_DIR / "output" / "descriptions_2026-07-14.json"
+CONFIG_PATH = BASE_DIR / "config.json"
 
-# ─── Domain definitions ───
+# ─── Load domain definitions from config.json ───
 
-DOMAINS = {
-    "AI/ML": {
-        "weight": 8,
-        "has_in_profile": True,
-        "keywords": ["ai", "ml", "machine learning", "genai", "llm", "artificial intelligence",
-                     "agentic", "ai agent", "model accuracy", "ai product", "ai platform",
-                     "ai solution", "ai enablement", "intelligent automation", "generative ai"],
-    },
-    "Healthcare": {
-        "weight": 12,
-        "has_in_profile": True,
-        "keywords": ["healthcare", "health", "ehr", "hl7", "fhir", "clinical", "patient",
-                     "medical", "pharma", "biotech", "medicare", "insurance", "payer",
-                     "provider", "pharmacy", "ambulatory", "medical device", "wearable"],
-    },
-    "Finance": {
-        "weight": 8,
-        "has_in_profile": True,
-        "keywords": ["finance", "financial", "fintech", "banking", "payment",
-                     "treasury", "compliance", "regulatory"],
-    },
-    "Capital Markets": {
-        "weight": 12,
-        "has_in_profile": False,
-        "keywords": ["trading", "capital markets", "investment", "portfolio management",
-                     "charles river", "aladdin", "simcorp", "fixed income",
-                     "buy-side", "sell-side", "asset manager", "hedge fund",
-                     "investment bank", "trading lifecycle", "order management"],
-    },
-    "Enterprise/B2B": {
-        "weight": 4,
-        "has_in_profile": True,
-        "keywords": ["enterprise", "b2b", "saas", "crm", "erp", "workflow", "automation",
-                     "digital transformation", "system integration"],
-    },
-    "Cybersecurity": {
-        "weight": 8,
-        "has_in_profile": False,
-        "keywords": ["security", "cyber", "threat", "vulnerability", "encryption", "soc", "siem",
-                     "compliance", "fraud", "identity"],
-    },
-    "E-commerce/Consumer": {
-        "weight": 6,
-        "has_in_profile": False,
-        "keywords": ["ecommerce", "e-commerce", "marketplace", "retail", "b2c", "shopping",
-                     "consumer", "loyalty", "brand"],
-    },
-    "Infrastructure/DevOps": {
-        "weight": 8,
-        "has_in_profile": False,
-        "keywords": ["infrastructure", "devops", "kubernetes", "docker", "sre",
-                     "observability", "monitoring", "reliability", "scalability"],
-    },
-    "Mobile/Hardware": {
-        "weight": 4,
-        "has_in_profile": False,
-        "keywords": ["mobile", "ios", "android", "hardware", "embedded", "firmware",
-                     "device", "iot", "sensors"],
-    },
-    "Life Sciences/Bioprocessing": {
-        "weight": 12,
-        "has_in_profile": False,
-        "keywords": ["bioprocessing", "chromatography", "affinity ligands", "resin",
-                     "protein purification", "downstream processing", "biologics",
-                     "biopharmaceutical", "fermentation", "cell culture", "purification",
-                     "gmp", "upstream processing", "drug substance", "drug product"],
-    },
-}
+def _load_domains():
+    with open(CONFIG_PATH) as f:
+        config = json.load(f)
+    domains = {}
+    for name, info in config.get("scoring", {}).get("domains", {}).items():
+        domains[name] = {
+            "weight": info["weight"],
+            "has_in_profile": info["has_in_profile"],
+            "keywords": info["keywords"],
+        }
+    return domains
+
+DOMAINS = _load_domains()
 
 # ─── Skill categories (same as ATS but for match scoring) ───
 
