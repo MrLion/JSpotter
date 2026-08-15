@@ -18,6 +18,7 @@ All notable changes to this project are documented here.
 - **Removed "equity" from Capital Markets keywords** — too ambiguous (stock compensation vs equity markets)
 - **Cache overwrite guard in run_scoring.py** — `fetch_job_description()` no longer overwrites existing cached JDs
 - **Domain definitions moved from match_score.py to config.json** — all domain keywords, weights, and has_in_profile flags are now config-driven
+- **Removed hardcoded candidate name from scripts** — quality_gate.py and validate_tailoring.py now read `full_name` from config.json instead of hardcoding "Georgii"
 - **Review JSON/TXT file organization** — review JSONs in `tailored/reviews/`, review notes TXT in `tailored/` or `tailored/applied/`, rejected job files in `tailored/archived/`
 - **Cover letter duplicate header** — removed date/company/Re: block from cover letter text (PDF generator handles it)
 
