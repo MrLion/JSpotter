@@ -25,6 +25,14 @@ from pathlib import Path
 BAD_KEYWORDS = ['Sole Proprietor', 'Entrepreneur', 'Agentic Trading', 'Agentic Systems']
 PANDERING = ['directly relevant to', 'well-suited for', 'perfectly aligned', 'ideal candidate', 'applicable to']
 
+# Load candidate config
+try:
+    with open(Path(__file__).parent / "config.json") as f:
+        _cfg = json.load(f)
+    CANDIDATE_FULL_NAME = _cfg.get("candidate", {}).get("full_name", "")
+except Exception:
+    CANDIDATE_FULL_NAME = ""
+
 # Metrics that belong to specific engagements
 METRIC_TO_SOURCE = {
     '13m patients': ['infinnity', 'google'],
@@ -238,9 +246,9 @@ def score_entry(entry, job_desc=''):
         pander_score -= 5
         issues.append(f'{company}: summary implies direct employment at client')
     
-    if 'Georgii' in all_text:
+    if CANDIDATE_FULL_NAME and CANDIDATE_FULL_NAME.lower() in all_text.lower():
         pander_score -= 3
-        issues.append(f'{company}: uses "Georgii" instead of "George"')
+        issues.append(f'{company}: uses full legal name instead of preferred name')
     
     pander_score = max(0, pander_score)
     score -= (15 - pander_score)

@@ -11,7 +11,7 @@ Checks:
 6. Summary ≤ 3 sentences
 7. No client-name prefixes ("Google GenAI:", "Walgreens:")
 8. No pandering phrases ("directly relevant to", "well-suited for")
-9. Uses "George" not "Georgii"
+9. Uses preferred name, not full legal name
 10. Cover letter has 3-4 body paragraphs
 11. All required fields present
 
@@ -128,10 +128,11 @@ def validate_entry(entry, idx):
         if phrase.lower() in summary.lower() or phrase.lower() in entry.get('cover_letter', '').lower():
             errors.append(f'{company}: pandering phrase found — "{phrase}"')
     
-    # 10. No "Georgii"
+    # 10. No full legal name
     all_text = summary + ' ' + entry.get('cover_letter', '')
-    if 'Georgii' in all_text:
-        errors.append(f'{company}: uses "Georgii" instead of "George"')
+    full_name = _CANDIDATE.get("full_name", "")
+    if full_name and full_name.lower() in all_text.lower():
+        errors.append(f'{company}: uses full legal name instead of preferred name')
     
     # 11. Cover letter paragraphs
     cover = entry.get('cover_letter', '')
