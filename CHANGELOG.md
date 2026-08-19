@@ -20,6 +20,15 @@ All notable changes to this project are documented here.
 - **Domain definitions moved from match_score.py to config.json** — all domain keywords, weights, and has_in_profile flags are now config-driven
 - **Removed hardcoded candidate name from scripts** — quality_gate.py and validate_tailoring.py now read `full_name` from config.json instead of hardcoding "Georgii"
 - **Full sweep: all personal data moved to config.json** — client names, conflation metrics, client keywords, bad keywords, pandering phrases, client employment regex, career order all config-driven; zero hardcoded company names or candidate data in quality_gate.py or validate_tailoring.py
+- **Multi-word domain keywords** — replaced generic single-word keywords ("security", "compliance", "investment", "equity") with multi-word variants to eliminate false positive domain matches across unrelated JDs
+- **Cybersecurity keywords overhauled** — "security" replaced with "cybersecurity", "security operations", "threat detection", "zero trust", etc.
+- **Capital Markets keywords refined** — removed "equity" and "investment", added "investment bank", "investment banking", "equity trading", "derivatives", "securities"
+- **Finance keywords refined** — "compliance" replaced with "financial compliance", "regulatory" with "regulatory reporting", "payment" with "payment processing"
+- **Tailoring prompt rule 16 added** — no cross-domain analogies; if JD doesn't mention AI/ML, don't include AI/ML in summary or strength labels
+- **Tailoring prompt rule 15 added to file** — surface leadership bullets when JD requires senior experience
+- **update_status() function** — single function for status changes with auto-archiving, timestamping, color coding
+- **Last Updated column** added to journal (col 18)
+- **Project structure moved from README.md to SETUP.md**
 - **Review JSON/TXT file organization** — review JSONs in `tailored/reviews/`, review notes TXT in `tailored/` or `tailored/applied/`, rejected job files in `tailored/archived/`
 - **Cover letter duplicate header** — removed date/company/Re: block from cover letter text (PDF generator handles it)
 
