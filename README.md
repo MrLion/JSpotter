@@ -6,7 +6,7 @@ AI-powered job hunting automation pipeline — LinkedIn search, LLM scoring, res
 
 ## Pipeline Stages
 
-1. **Daily Job Search** — LinkedIn browser extraction (Boston + Remote)
+1. **Daily Job Search** — LinkedIn browser extraction (config-driven locations)
 2. **AI Scoring** — Match score, ATS score, interview probability (defined algorithms)
 3. **Prioritization** — High/Medium/Low priority based on match score
 4. **Resume Tailoring** — LLM-generated tailored resumes with PDF output
@@ -32,13 +32,14 @@ Daily job search runs automatically via Hermes cron. See [docs/CRON.md](docs/CRO
 | `tailoring_prompt_local.md` | Working tailoring prompt with personal data |
 | `config.json` | Search keywords, locations, scoring thresholds, career order |
 | `theme.json` | Resume design (fonts, colors, margins, education, contact info) |
-| `journal.xlsx` | Job tracking (5 sheets, color-coded statuses) |
+| `journal.xlsx` | Job tracking (4 sheets, color-coded statuses) |
 | `resume/MASTER_PROFILE.md` | Your career profile |
+| `output/descriptions_cache.json` | Cached job descriptions for scoring |
 
 ## Requirements
 
 - Python 3.10+
-- openpyxl, reportlab
+- openpyxl, reportlab, Pillow
 - Hermes Agent (for LLM scoring and resume tailoring)
 
 ## License
