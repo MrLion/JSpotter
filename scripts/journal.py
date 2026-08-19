@@ -54,6 +54,7 @@ JOBS_COLUMNS = [
     ("status", "Status", 16),
     ("app_url", "App URL", 45),
     ("date_applied", "Date Applied", 12),
+    ("last_updated", "Last Updated", 12),
 ]
 
 APPLICATIONS_COLUMNS = [
@@ -364,6 +365,70 @@ def add_jobs(jobs_data, path=JOURNAL_PATH, mode="append"):
     wb.save(str(path))
     print(f"Added {added} jobs, skipped {skipped} duplicates")
     return added, skipped
+
+
+def update_status(company, status, path=JOURNAL_PATH, title=None):
+    """Update job status and set Last Updated timestamp. Archives PDFs for Rejected/Closed.
+    
+    Args:
+        company: Company name to match (case-insensitive)
+        status: New status (Applied, Interview, Rejected, Closed, Withdrawn, Not Applied)
+        title: Optional title filter if multiple roles for same company
+        path: Path to journal file
+    """
+    from openpyxl.styles import PatternFill, Font
+    from datetime import datetime
+    import shutil, os
+    
+    wb = load_workbook(str(path))
+    ws = wb['Jobs']
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    STATUS_COLORS = {
+        "Applied": PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid'),
+        "Interview": PatternFill(start_color='B3D9FF', end_color='B3D9FF', fill_type='solid'),
+        "Rejected": PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid'),
+        "Closed": PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid'),
+        "Withdrawn": PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid'),
+    }
+    
+    updated = []
+    for row in ws.iter_rows(min_row=2, max_col=20):
+        row_company = str(row[1].value) if row[1].value else ''
+        row_title = str(row[2].value) if row[2].value else ''
+        if company.lower() in row_company.lower():
+            if title and title.lower() not in row_title.lower():
+                continue
+            ws.cell(row=row[0].row, column=15).value = status  # Status
+            ws.cell(row=row[0].row, column=18).value = today   # Last Updated
+            if status == 'Applied':
+                ws.cell(row=row[0].row, column=17).value = today  # Date Applied
+            if status in STATUS_COLORS:
+                row[1].fill = STATUS_COLORS[status]
+                if status == 'Applied':
+                    row[1].font = Font(bold=True)
+            updated.append(f'{row_company} — {row_title}')
+    
+    wb.save(str(path))
+    
+    # Archive PDFs for Rejected/Closed/Withdrawn
+    if status in ('Rejected', 'Closed', 'Withdrawn'):
+        tailored_dir = os.path.dirname(str(path))
+        resume_dir = os.path.join(tailored_dir, 'resume', 'tailored')
+        archive_dir = os.path.join(resume_dir, 'archived')
+        os.makedirs(archive_dir, exist_ok=True)
+        for f in os.listdir(resume_dir):
+            if company.lower() in f.lower() and f.endswith('.pdf'):
+                shutil.move(os.path.join(resume_dir, f), os.path.join(archive_dir, f))
+        applied_dir = os.path.join(resume_dir, 'applied')
+        if os.path.isdir(applied_dir):
+            for f in os.listdir(applied_dir):
+                if company.lower() in f.lower() and (f.endswith('.pdf') or f.endswith('.txt')):
+                    shutil.move(os.path.join(applied_dir, f), os.path.join(archive_dir, f))
+    
+    for u in updated:
+        print(f'{status}: {u}')
+    return updated
 
 
 def validate_journal_rows(ws):
