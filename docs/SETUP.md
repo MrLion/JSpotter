@@ -22,6 +22,38 @@
    gh auth login
    ```
 
+## Project Structure
+
+```
+JSpotter/
+├── scripts/                    # Pipeline scripts
+│   ├── search_linkedin.py      # LinkedIn browser extraction
+│   ├── search_dice.py          # Dice.com browser extraction (requires login)
+│   ├── journal.py              # Journal management (add, init, status, validation)
+│   ├── run_scoring.py          # Full scoring pipeline (match, ATS, interview prob)
+│   ├── match_score.py          # Match score algorithm (config-driven domains)
+│   ├── ats_score.py            # ATS keyword overlap score
+│   ├── interview_prob.py       # Interview probability algorithm
+│   ├── generate_pdf.py         # PDF + cover letter generator (ReportLab)
+│   ├── quality_gate.py         # Technical quality gate (6 checks, 100pts)
+│   ├── validate_tailoring.py   # Structural validation + auto-fix
+│   ├── run_batch_review.py     # Batch LLM review (multiple resumes in one call)
+│   ├── adapt_resume.py         # Same-company resume adapter
+│   └── run_review.py           # Single resume LLM review
+├── templates/                  # All templates (generic, no personal data)
+│   ├── MASTER_PROFILE.template.md
+│   ├── config.template.json
+│   ├── theme.template.json
+│   ├── tailoring_prompt_template.md
+│   ├── review_prompt_template.md
+│   └── cron_template.md
+├── docs/                       # Setup and usage documentation
+│   ├── SETUP.md                # Installation and configuration
+│   └── CRON.md                 # Cron job setup and troubleshooting
+├── CHANGELOG.md                # Release history
+└── README.md
+```
+
 ## Setup Steps
 
 ### 1. Create your master profile
