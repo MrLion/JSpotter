@@ -76,13 +76,22 @@ Edit `config.json` to customize:
 | Setting | Description | Example |
 |---------|-------------|---------|
 | `search.keywords` | Job search keywords | `"product manager AI"` |
-| `search.locations` | Locations to search | Boston + Remote USA |
+| `search.locations` | Locations to search (LinkedIn filters) | USA |
 | `search.max_results_per_search` | Max results per location | `70` |
 | `scoring.priority_thresholds.high` | Match score for High priority | `80` |
 | `scoring.priority_thresholds.medium` | Match score for Medium priority | `65` |
 | `scoring.preferred_location` | Your preferred location | `"Boston"` |
-| `scoring.candidate_domains` | Your strongest domains | `["AI/ML", "Healthcare"]` |
+| `scoring.candidate_domains` | Your strongest domains | `["AI/ML", "Healthcare", "Finance", "Enterprise/B2B"]` |
+| `scoring.domains` | Domain definitions (keywords, weights, has_in_profile) | See config |
 | `scoring.domain_weights` | Weight per domain | See config |
+| `candidate.full_name` | Full legal name (checked against preferred name) | See config |
+| `candidate.bad_keywords` | Banned terms in highlights | See config |
+| `candidate.pandering_phrases` | Banned phrases in summary/cover letter | See config |
+| `candidate.conflation_metrics` | Metric-to-engagement mappings | See config |
+| `candidate.client_keywords` | Client identification keywords | See config |
+| `candidate.client_names_in_profile` | Client display names | See config |
+| `candidate.client_employment_regex` | Regex for direct employment detection | See config |
+| `candidate.career_order` | Career history order for validation | See config |
 | `resume_tailoring.bullet_max_words` | Max words per bullet | `35` |
 | `resume_tailoring.quality_gate_threshold` | Technical gate minimum score | `75` |
 | `resume_tailoring.human_review_threshold` | LLM review minimum score | `70` |
@@ -128,7 +137,7 @@ All design settings are required — start from `theme.template.json` and fill i
 python3 scripts/journal.py --init
 ```
 
-Creates `journal.xlsx` with 4 sheets: Jobs, Applications, Resume Versions, Reference.
+Creates `journal.xlsx` with sheets: Jobs, Applications, Resume Versions, Reference. Each row in the Jobs sheet includes a Last Updated column tracking the date of last status change.
 
 ### 5. Run your first search
 
@@ -182,28 +191,29 @@ See **[docs/CRON.md](CRON.md)** for the full cron setup guide, including:
 |--------|---------|-------------------|-------------------|
 | `search_linkedin.py` | Browser-based LinkedIn job search | ✅ keywords, locations | — |
 | `search_dice.py` | Browser-based Dice job search (login required) | ✅ keywords, locations | — |
-| `journal.py` | Journal management (init, add, status) | ✅ journal path | — |
+| `journal.py` | Journal management (init, add, status, validation, update_status) | ✅ journal path | — |
 | `run_scoring.py` | Fetch descriptions + calculate all scores | ✅ priority thresholds | — |
-| `match_score.py` | Match score algorithm | ✅ location, thresholds | — |
+| `match_score.py` | Match score algorithm (config-driven domains) | ✅ domains, location, thresholds | — |
 | `ats_score.py` | ATS keyword overlap algorithm | — | — |
 | `interview_prob.py` | Interview probability algorithm | ✅ preferred location | — |
 | `generate_pdf.py` | PDF generation with quality gate | ✅ output dir | ✅ all design |
-| `quality_gate.py` | Technical quality scoring (Gate 1) | ✅ quality threshold | — |
-| `validate_tailoring.py` | Structural validation + auto-fix | — | — |
-| `journal.py` (validate) | Journal row integrity validation | — | — |
+| `quality_gate.py` | Technical quality scoring (Gate 1, config-driven) | ✅ quality threshold, candidate config | — |
+| `validate_tailoring.py` | Structural validation + auto-fix (config-driven) | ✅ candidate config | — |
 
 ## Scoring
 
 ### Match Score (0-100)
 | Component | Max Pts | Description |
 |-----------|---------|-------------|
-| Domain match | 35 | Weighted domain keyword overlap (AI/ML, Healthcare, Finance, etc.) |
+| Domain match | 40 | Weighted domain keyword overlap with word boundary matching. Domains defined in `config.json → scoring.domains`. Current domains: AI/ML, Healthcare, Finance, Capital Markets, Enterprise/B2B, Cybersecurity, E-commerce/Consumer, Infrastructure/DevOps, Mobile/Hardware, Life Sciences/Bioprocessing, Semiconductor/Materials R&D, Public Sector/Transportation |
 | Skill match | 20 | Skill category overlap (PM, AI/ML, Methodology, Technical, etc.) |
 | Seniority | 15 | Title-based seniority fit |
 | Years requirement | 10 | Years of experience match |
 | Location | 10 | Preferred location match |
 | Entrepreneurship | 5 | Founder/entrepreneur experience |
 | Certification gap | -15 | Deducts 5pts per cert in JD but missing from profile (capped at -15). Checks: CFA, PMP, AIPMM, SAFe, POPM, CPA, CISSP, AWS/Azure/GCP Certified, PHR, SHRM, Six Sigma, ITIL |
+
+Domain keywords use multi-word matching (e.g., "cybersecurity" not "security", "investment bank" not "investment") to avoid false positive domain matches across unrelated JDs.
 
 ### Priority Thresholds (configurable)
 - **High:** ≥80
@@ -220,7 +230,7 @@ See **[docs/CRON.md](CRON.md)** for the full cron setup guide, including:
 - HR perspective + Hiring Manager perspective
 - Threshold: configurable via `config.json → resume_tailoring.human_review_threshold` (default 70)
 
-Only resumes passing both gates get PDFs generated.
+Only resumes passing both gates get clean PDFs. Resumes below Gate 2 threshold still get PDFs but with review notes appended.
 
 ## Configuration Reference
 
@@ -233,3 +243,33 @@ Only resumes passing both gates get PDFs generated.
 | `templates/review_prompt_template.md` | Prompt template for LLM human review |
 | `templates/config.template.json` | Config file with all settings documented |
 | `templates/theme.template.json` | Theme file with all design options documented |
+
+## Browser Configuration
+
+Set the browser engine to Playwright to avoid Chrome remote debugging approval popups (critical for unattended cron runs):
+
+```bash
+hermes config set browser.engine playwright
+hermes gateway restart
+```
+
+## File Organization
+
+Tailored resume files are organized by application status:
+
+```
+resume/tailored/           — PDFs + review notes TXT (not yet applied)
+resume/tailored/applied/    — PDFs + review notes TXT (applied jobs)
+resume/tailored/archived/   — PDFs + TXTs (rejected/closed/withdrawn)
+resume/tailored/reviews/    — Review JSON files (all statuses)
+```
+
+Use `update_status()` from `journal.py` to move files automatically when status changes.
+
+## Descriptions Cache
+
+Job descriptions are cached in `output/descriptions_cache.json`. To keep the cache clean:
+
+- Orphan entries (JDs for jobs no longer in the journal) should be purged periodically
+- Compare cache URLs against journal URLs and delete orphans
+- Zero-score jobs (match=0) typically have no cached JD — `fetch_job_description()` failed to extract text from LinkedIn
