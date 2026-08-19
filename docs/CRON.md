@@ -2,6 +2,17 @@
 
 JSpotter uses Hermes cron jobs for automated daily tasks. This guide covers setup, configuration, and troubleshooting.
 
+## Browser Configuration
+
+Set the browser engine to Playwright to avoid Chrome remote debugging approval popups:
+
+```bash
+hermes config set browser.engine playwright
+hermes gateway restart
+```
+
+Chrome requires per-connection "Allow remote debugging?" approval which blocks unattended cron runs. Playwright uses its own Chromium instance — no popup needed.
+
 ## Daily Job Scan
 
 Runs the full search → add → score pipeline every morning and delivers a summary to Telegram.
@@ -70,6 +81,44 @@ See `TELEGRAM_TEMPLATE.md` for the daily report format. Key rules:
 - Medium/Low priority: counts only
 - Bottom line: applied, interviews, rejected, closed counts
 
+### Search Configuration
+
+Search locations and keywords are configured in `config.json`:
+- `search.locations` — list of LinkedIn location filters (e.g., USA with `linkedin_filter: "United States"`)
+- `search.keywords` — search query string (e.g., "product manager AI")
+- `search.title_filter_terms` — title words to include (manager, director, vp, head, lead, owner)
+- `search.max_results_per_search` — max results per location
+
+To add Dice.com as a second source, run `search_dice.py` (requires login — cookies persist between runs).
+
+### Journal Data Integrity
+
+The journal automatically validates rows on every `add_jobs()` call via `validate_journal_rows()`:
+- Job ID must not contain URLs
+- Status must be in {Not Applied, Applied, Interview, Rejected, Closed, Withdrawn}
+- Priority must be in {High, Medium, Low}
+- Date Applied must not contain URLs
+- App URL must not contain status words
+
+### Status Updates
+
+Use `update_status()` from `journal.py` for all status changes:
+```python
+from journal import update_status
+update_status("Company", "Applied")           # all roles for company
+update_status("Company", "Rejected", title="Specific Title")  # one role only
+```
+
+This automatically:
+- Updates Status + Last Updated columns
+- Sets Date Applied if Applied
+- Color-codes the company cell
+- Archives PDFs/TXTs to `tailored/archived/` for Rejected/Closed/Withdrawn
+
+### Duplicate Handling
+
+Journal dedup is URL-based. Cross-source duplicates (LinkedIn + Dice) may have different URLs for the same job — manual dedup may be needed when same company + title appears from both sources.
+
 ## LinkedIn Post Ideas
 
 Generates 5 post ideas every Wednesday based on trending PM/AI topics.
@@ -86,6 +135,14 @@ Rules:
 - See `LINKEDIN_IDEAS_TEMPLATE.md` for the format
 
 ## Troubleshooting
+
+### Chrome "Allow remote debugging?" popup blocks cron
+
+Chrome requires per-connection remote debugging approval which cron jobs can't provide. Fix:
+```bash
+hermes config set browser.engine playwright
+hermes gateway restart
+```
 
 ### Cron job fails with "Response remained truncated"
 
@@ -104,7 +161,6 @@ Cron jobs run unattended — they can't approve commands. Fix:
 Hermes runs on its own venv Python (e.g., 3.11). Pipeline scripts may need a different version. Fix:
 - Use `run_daily.sh` with explicit `PYBIN` path
 - Set `PYTHONPATH=""` to avoid venv module conflicts
-- The Hermes Python 3.11 App Management entry is expected — approve it in macOS
 
 ### Telegram delivery fails
 
@@ -123,3 +179,16 @@ Common causes:
 The cron agent wrote custom search code instead of using `search_linkedin.py`. Fix:
 - Ensure the prompt says `bash run_daily.sh` (not individual Python commands)
 - The prompt must say "Do NOT write custom search code"
+
+### Jobs scored at 0 (no JD fetched)
+
+`fetch_job_description()` failed to extract the JD from LinkedIn. These jobs get match=0. Fix:
+- Delete zero-score jobs from journal
+- Manually add JD text to `descriptions_cache.json` and re-score
+- Or use `open_preview` + `read_preview` to extract JD text and cache manually
+
+### Stale cache entries
+
+Cache may contain JDs for jobs deleted from the journal. To clean:
+- Compare `descriptions_cache.json` URLs against journal URLs
+- Delete orphan entries (in cache but not in journal)
