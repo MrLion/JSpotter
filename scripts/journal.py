@@ -430,7 +430,7 @@ def update_status(company, status, path=JOURNAL_PATH, title=None):
         archive_dir = os.path.join(resume_dir, 'archived')
         os.makedirs(archive_dir, exist_ok=True)
         for f in os.listdir(resume_dir):
-            if _match(f) and f.endswith('.pdf'):
+            if _match(f) and (f.endswith('.pdf') or f.endswith('.txt')):
                 shutil.move(os.path.join(resume_dir, f), os.path.join(archive_dir, f))
         applied_dir = os.path.join(resume_dir, 'applied')
         if os.path.isdir(applied_dir):
