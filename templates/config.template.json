@@ -1,7 +1,7 @@
 {
   "_comment": "Copy to config.json and customize. See docs/SETUP.md for details.",
   "candidate": {
-    "_comment": "Candidate name, career order, conflation metrics, and client keywords for validation",
+    "_comment": "Candidate name, career order, conflation metrics, and client keywords for validation. Set include_name_in_filename to false to omit the candidate name from generated PDF filenames.",
     "name": "Your Name",
     "career_order": [
       {"keywords": ["Employer1"], "dates": "(Year–Year)"},

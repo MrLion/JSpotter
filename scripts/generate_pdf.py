@@ -31,6 +31,8 @@ def load_config():
 CONFIG = load_config()
 CANDIDATE = CONFIG.get("candidate", {})
 CANDIDATE_NAME = CANDIDATE.get("name", "")
+# Optional: prepend candidate name to generated PDF filenames. Default True (backwards compatible).
+INCLUDE_NAME_IN_FILENAME = CANDIDATE.get("include_name_in_filename", True)
 CAREER_ORDER = CANDIDATE.get("career_order", [])
 
 # Load theme
@@ -487,13 +489,16 @@ def main():
         
         safe_co = "".join(c for c in company if c.isalnum() or c in " -_").strip()
         safe_ti = "".join(c for c in title if c.isalnum() or c in " -_").strip()
-        safe_name = "".join(c for c in CANDIDATE_NAME if c.isalnum() or c in " -_").strip()
-        outpath = OUTPUT_DIR / f"{safe_name}_{safe_co}_{safe_ti}{version_suffix}.pdf"
+        # Optionally prepend candidate name to the filename for easy identification.
+        name_prefix = ""
+        if INCLUDE_NAME_IN_FILENAME and CANDIDATE_NAME:
+            name_prefix = "".join(c for c in CANDIDATE_NAME if c.isalnum() or c in " -_").strip() + "_"
+        outpath = OUTPUT_DIR / f"{name_prefix}{safe_co}_{safe_ti}{version_suffix}.pdf"
         generate_pdf(item, outpath)
         # Save cover letter as PDF
         cover = item.get('cover_letter', '')
         if cover:
-            cl_path = OUTPUT_DIR / f"{safe_name}_{safe_co}_{safe_ti}{version_suffix}_cover_letter.pdf"
+            cl_path = OUTPUT_DIR / f"{name_prefix}{safe_co}_{safe_ti}{version_suffix}_cover_letter.pdf"
             generate_cover_letter_pdf(item, cl_path)
             print(f"    Generated: {outpath.name} + cover letter PDF")
         else:

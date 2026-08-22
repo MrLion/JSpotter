@@ -8,6 +8,9 @@ All notable changes to this project are documented here.
 - **`update_status()` Applied archiving in journal.py** — previously only archived files for Rejected/Closed/Withdrawn, so Applied roles' PDFs stayed in `tailored/` root instead of moving to `applied/`. Added an `Applied` branch that moves PDFs/TXTs into `applied/`.
 - **Company filename matching** — replaced substring match with normalized matching (strips punctuation/spaces/case) so names like "Qventus, Inc" match filenames like "Qventus Inc".
 
+### Changed
+- **`include_name_in_filename` config flag in generate_pdf.py** — candidate name prepended to generated PDF filenames is now optional. Set `candidate.include_name_in_filename: false` to omit it (default `true`, backwards compatible).
+
 ## [0.12.0] - 2026-08-15
 
 ### Added
