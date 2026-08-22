@@ -411,19 +411,31 @@ def update_status(company, status, path=JOURNAL_PATH, title=None):
     
     wb.save(str(path))
     
-    # Archive PDFs for Rejected/Closed/Withdrawn
-    if status in ('Rejected', 'Closed', 'Withdrawn'):
-        tailored_dir = os.path.dirname(str(path))
-        resume_dir = os.path.join(tailored_dir, 'resume', 'tailored')
+    # Archive PDFs (and review notes) based on status.
+    # Applied -> move into applied/; Rejected/Closed/Withdrawn -> move into archived/.
+    import re
+    def _match(fname):
+        c = re.sub(r'[^a-z0-9]', '', company.lower())
+        f = re.sub(r'[^a-z0-9]', '', fname.lower())
+        return bool(c) and c in f
+
+    resume_dir = os.path.join(os.path.dirname(str(path)), 'resume', 'tailored')
+    if status == 'Applied':
+        applied_dir = os.path.join(resume_dir, 'applied')
+        os.makedirs(applied_dir, exist_ok=True)
+        for f in os.listdir(resume_dir):
+            if _match(f) and (f.endswith('.pdf') or f.endswith('.txt')):
+                shutil.move(os.path.join(resume_dir, f), os.path.join(applied_dir, f))
+    elif status in ('Rejected', 'Closed', 'Withdrawn'):
         archive_dir = os.path.join(resume_dir, 'archived')
         os.makedirs(archive_dir, exist_ok=True)
         for f in os.listdir(resume_dir):
-            if company.lower() in f.lower() and f.endswith('.pdf'):
+            if _match(f) and f.endswith('.pdf'):
                 shutil.move(os.path.join(resume_dir, f), os.path.join(archive_dir, f))
         applied_dir = os.path.join(resume_dir, 'applied')
         if os.path.isdir(applied_dir):
             for f in os.listdir(applied_dir):
-                if company.lower() in f.lower() and (f.endswith('.pdf') or f.endswith('.txt')):
+                if _match(f) and (f.endswith('.pdf') or f.endswith('.txt')):
                     shutil.move(os.path.join(applied_dir, f), os.path.join(archive_dir, f))
     
     for u in updated:

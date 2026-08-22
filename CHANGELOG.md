@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here.
 
+## [0.12.1] - 2026-08-22
+
+### Fixed
+- **`update_status()` Applied archiving in journal.py** — previously only archived files for Rejected/Closed/Withdrawn, so Applied roles' PDFs stayed in `tailored/` root instead of moving to `applied/`. Added an `Applied` branch that moves PDFs/TXTs into `applied/`.
+- **Company filename matching** — replaced substring match with normalized matching (strips punctuation/spaces/case) so names like "Qventus, Inc" match filenames like "Qventus Inc".
+
 ## [0.12.0] - 2026-08-15
 
 ### Added
