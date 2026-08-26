@@ -100,19 +100,17 @@ STRONG_PATTERNS = [
 ]
 
 # Interview requests / scheduling invites (ACTION REQUIRED).
-# Requires concrete scheduling/request language. Bare "interview" or
-# "next step" alone is too noisy (newsletters and job fairs use those
-# words) — we only flag messages that actually ask to schedule/arrange
-# a call or give an interview status update.
+# Match on the SUBJECT line — genuine interview emails almost always have
+# "interview" (or screen/onsite) in the subject (e.g. "Interview Invitation",
+# "Interview Reminder", "Phone Interview Request", "Onsite Interview").
+# This is far more accurate than body heuristics, which over-match on
+# newsletter boilerplate ("next steps", "availability", "interview resources").
 INTERVIEW_PATTERNS = [
-    r"(?:schedule|set up|arrange|book).{0,15}(?:interview|phone screen|screen|call|meeting|time)",
-    r"interview.{0,15}(?:invitation|invite|request|availability|scheduled|rescheduled|update|reminder|confirm)",
+    r"interview",
     r"phone (?:screen|interview)",
+    r"onsite interview",
     r"technical screen",
-    r"connect.{0,10}(?:call|chat|meet|zoom)",
-    r"invite you.{0,15}(?:interview|screen|call|meet)",
-    r"select.{0,15}(?:interview|screen)",
-    r"confirm.{0,15}(?:interview|slot|availability)",
+    r"interview.{0,12}(?:invitation|invite|request|availability|reminder|scheduled|rescheduled|update|confirm|hold)",
 ]
 
 # Application received / under review (not a decision).
@@ -208,9 +206,12 @@ def classify(subject, body):
     Order matters: an application-confirmation email often contains
     boilerplate words like "interview resources" or "next steps" — so we
     must match the definitive confirmation FIRST. "Interview request" is
-    reserved for messages that actually ask to schedule/arrange a meeting.
+    matched on the SUBJECT line only (genuine interview emails carry
+    "interview"/"onsite"/"screen" in the subject); body matching is too
+    noisy because newsletters reuse the same words.
     """
     haystack = (subject + " " + body).lower()
+    subject_l = subject.lower()
 
     # Rejection first (strong signal wins over a "thank you" confirmation).
     strong = any(re.search(p, haystack) for p in STRONG_PATTERNS)
@@ -226,7 +227,8 @@ def classify(subject, body):
     if any(re.search(p, haystack) for p in REFERRAL_PATTERNS):
         return "referral"
 
-    if any(re.search(p, haystack) for p in INTERVIEW_PATTERNS):
+    # Interview requests: subject-only match.
+    if any(re.search(p, subject_l) for p in INTERVIEW_PATTERNS):
         return "interview_request"
 
     return None
