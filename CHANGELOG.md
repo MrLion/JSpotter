@@ -9,6 +9,12 @@ All notable changes to this project are documented here.
 
 ### Changed
 - **Scripts moved to `scripts/` folder** — all pipeline scripts relocated from the repo root into `scripts/`, with `BASE_DIR` updated to `Path(__file__).parent.parent` so they resolve `config.json`, `journal.xlsx`, `resume/`, and `output/` from the project root. `run_daily.sh` and docs updated to reference `scripts/`.
+- **`run_review.py` moved into `scripts/`** — relocated from repo root to match the structure documented in `docs/SETUP.md`; its `OUTPUT_DIR` now resolves from the project root.
+- **`templates/run_daily.sh` added** — generic daily pipeline runner for the repo; the local copy with absolute paths stays gitignored (matches the `config.template.json` / `config.json` pattern).
+
+### Fixed
+- **`templates/config.template.json` rebuilt to match the scripts** — added missing `candidate` keys (`full_name`, `bad_keywords`, `pandering_phrases`, `client_names_in_profile`, `client_employment_regex`, `include_name_in_filename`), added the full `scoring.domains` definitions, expanded `domain_weights` from 8 to all 12 domains (corrected stale names like `Enterprise` → `Enterprise/B2B`), set the single-USA search location, and corrected `results_file` to `output/linkedin_extract.json`. A fresh copy now works with the scripts.
+- **Doc inconsistencies** — removed pinned cron model/provider (no longer indicated); updated `linkedin_extract_today.json` → `linkedin_extract.json` in `docs/SETUP.md`; added `TELEGRAM_TEMPLATE.md` and `run_daily.sh` to the project-structure tree; corrected LinkedIn search to guest API (not browser); added `adapt_resume.py`, `run_batch_review.py`, and `run_review.py` to the Pipeline Scripts table; clarified that browser configuration is only needed for the Dice search, not the daily LinkedIn scan.
 
 ## [0.12.1] - 2026-08-22
 
