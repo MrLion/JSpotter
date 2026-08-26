@@ -26,8 +26,7 @@ reported once.
 
 Configuration (env vars, all optional with defaults):
   EMJ_STATE        — path to the dedupe state file (default:
-                     $XDG_STATE_HOME/email_rejection_seen.json, or
-                     ~/.local/state/email_rejection_seen.json)
+                     <project>/output/email_triage_seen.json)
   EMJ_ACCOUNTS     — comma-separated himalaya accounts to scan
                      (default: icloud,gmail)
   EMJ_MAILBOX      — himalaya mailbox to scan per account (default: Inbox)
@@ -50,15 +49,16 @@ import subprocess
 import sys
 from collections import Counter
 from datetime import datetime, timezone
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent.parent
 
 # --- Configuration (env-overridable, machine-independent defaults) ----------
 def _default_state_file():
-    """Pick a sensible default state-file path that any machine can use."""
-    if os.environ.get("XDG_STATE_HOME"):
-        base = os.environ["XDG_STATE_HOME"]
-    else:
-        base = os.path.join(os.path.expanduser("~"), ".local", "state")
-    return os.path.join(base, "email_rejection_seen.json")
+    """State file lives in the project's gitignored output/ dir (local-only),
+    following the same BASE_DIR convention as the other pipeline scripts.
+    """
+    return str(BASE_DIR / "output" / "email_triage_seen.json")
 
 
 STATE_FILE = os.environ.get("EMJ_STATE", _default_state_file())
