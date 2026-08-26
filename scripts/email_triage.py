@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-iCloud email classifier for a job search.
+iCloud email triage scanner for a job search.
 
 Scans the iCloud inbox via himalaya for employer emails and classifies
 each into a type: rejection, interview_request, application_confirmation,
