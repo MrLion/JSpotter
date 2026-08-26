@@ -46,7 +46,9 @@ JSpotter/
 │   ├── theme.template.json
 │   ├── tailoring_prompt_template.md
 │   ├── review_prompt_template.md
-│   └── cron_template.md
+│   ├── TELEGRAM_TEMPLATE.md
+│   ├── cron_template.md
+│   └── run_daily.sh
 ├── docs/                       # Setup and usage documentation
 │   ├── SETUP.md                # Installation and configuration
 │   └── CRON.md                 # Cron job setup and troubleshooting
@@ -149,7 +151,7 @@ python3 scripts/search_linkedin.py
 python3 scripts/search_dice.py
 
 # Add results to journal (dedup by App URL, then source URL, then company+title+location)
-python3 scripts/journal.py --add output/linkedin_extract_today.json
+python3 scripts/journal.py --add output/linkedin_extract.json
 
 # Fetch descriptions and score all new jobs
 python3 scripts/run_scoring.py

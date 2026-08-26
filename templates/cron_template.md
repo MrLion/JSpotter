@@ -7,10 +7,8 @@ Use this template when creating or updating the daily job scan cron job.
 ```
 Name: Daily Job Scan
 Schedule: 0 9 * * * (daily at 9 AM local time)
-Model: glm-5.2
-Provider: zai
 Deliver: telegram:<chat_id>
-Toolsets: browser, terminal, file
+Toolsets: terminal, file
 Workdir: <project path>
 ```
 
@@ -65,14 +63,14 @@ echo "=== DONE ==="
 
 4. **Response = Telegram message** — the agent's final response is delivered to Telegram. It must contain ONLY the formatted report. No narration, no pipeline summaries.
 
-5. **Provider matters** — `zai` provider handles the output length. `ollama-cloud` may truncate the response.
+5. **Output length** — pick a provider/model that can handle the report output length without truncating. If responses come back truncated, switch to a model with a higher output limit.
 
 ## Troubleshooting
 
 | Issue | Fix |
 |-------|-----|
 | Approval prompt blocks cron | Add command to `command_allowlist` in config.yaml |
-| Response truncated | Switch provider from `ollama-cloud` to `zai` |
+| Response truncated | Switch to a model with a higher output limit |
 | Python 3.11 App Management entry | Expected — Hermes runtime uses its own venv. Approve it in macOS System Settings |
 | `journal.py: error: unrecognized arguments` | Use `--add` not `add` |
 | Agent narrates work in Telegram | Reinforce "ABSOLUTE RULE" in prompt |

@@ -56,10 +56,8 @@ hermes cron create "0 9 * * *"
 
 Or use the `cronjob` tool:
 - Schedule: `0 9 * * *`
-- Model: `glm-5.2`
-- Provider: `zai`
 - Deliver: `telegram:<chat_id>`
-- Toolsets: `browser`, `terminal`, `file`
+- Toolsets: `terminal`, `file`
 - Workdir: your project path
 
 5. **Restart Hermes** for config changes to take effect.
@@ -146,9 +144,7 @@ hermes gateway restart
 
 ### Cron job fails with "Response remained truncated"
 
-The model output exceeded the token limit. Switch provider:
-- `ollama-cloud` has lower output limits
-- `zai` handles longer responses
+The model output exceeded the token limit. Switch to a model/provider with a higher output limit.
 
 ### Approval prompt blocks execution
 
