@@ -5,11 +5,17 @@ All notable changes to this project are documented here.
 ## [0.13.1] - 2026-08-26
 
 ### Added
-- **`scripts/email_triage.py` — email inbox triage scanner** — scans the iCloud inbox via `himalaya` for employer emails and classifies each into a type: `rejection`, `interview_request`, `application_confirmation`, `referral`, or unclassified. Outputs JSON to stdout for the daily cron to process. Genericized for the repo (env-overridable config via `EMJ_STATE`/`EMJ_MAILBOX`/`EMJ_WINDOW_DAYS`/`HIMALAYA_CMD`, machine-independent defaults, standard library only — no hardcoded credentials).
+- **`scripts/email_triage.py` — email inbox triage scanner** — scans iCloud and Gmail inboxes via `himalaya` for employer emails and classifies each into a type: `rejection`, `interview_request`, `application_confirmation`, `referral`, or unclassified. Outputs JSON to stdout for the daily cron to process. Genericized for the repo (env-overridable config via `EMJ_STATE`/`EMJ_ACCOUNTS`/`EMJ_MAILBOX`/`EMJ_WINDOW_DAYS`/`HIMALAYA_CMD`, machine-independent defaults, standard library only — no hardcoded credentials).
+- **Multi-account scanning** — the scanner now reads from both `icloud` and `gmail` himalaya accounts (configurable via `EMJ_ACCOUNTS`). Each candidate is tagged with its `account`; the dedupe state is keyed `account:id` so message IDs that collide across accounts don't clobber each other.
 
 ### Changed
-- **`email_rejection_scan.py` renamed to `email_triage.py`** — the script now triages multiple signal types (interviews, confirmations, referrals) rather than only rejections, so it was renamed to match its expanded role. Classification priority: rejection > application_confirmation > referral > interview_request (confirmations are matched before interviews because they contain boilerplate like "interview resources"/"next steps"). JSON output adds a `type` field per candidate plus type `counts`; the existing `found_ts`/`window_days`/`total_scanned`/`new_candidates`/`all_candidate_ids` fields are preserved.
+- **`email_rejection_scan.py` renamed to `email_triage.py`** — the script triages multiple signal types (interviews, confirmations, referrals) rather than only rejections, so it was renamed to match its expanded role. Classification priority: rejection > application_confirmation > referral > interview_request (confirmations are matched before interviews because they contain boilerplate like "interview resources"/"next steps"). JSON output adds a `type` field per candidate plus type `counts`; the existing `found_ts`/`window_days`/`total_scanned`/`new_candidates`/`all_candidate_ids` fields are preserved.
+- **Interview detection simplified to subject-line matching** — interview requests are now matched on the subject line (genuine emails carry "interview"/"onsite"/"screen" there), not body heuristics. Body matching over-fires on newsletter boilerplate ("next steps", "availability", "interview resources"); subject matching returns exactly the real interview threads with no exclusion lists needed.
 - **`amazon.jobs` removed from the non-employer exclusion list** — Amazon now sends referral and application-confirmation emails that should be classified.
+- **Dedupe state moved to the project** — the state file now lives at `output/email_triage_seen.json` (gitignored, alongside `journal.db` and `descriptions_cache.json`), following the project's `BASE_DIR` convention, instead of a scattered `~/.local/state/` path.
+
+### Removed
+- **Redundant cron wrapper/symlink** — the cron job previously ran the script through a thin wrapper (and later a symlink) under the profile scripts dir. Removed both: the cron prompt now runs `scripts/email_triage.py` directly via the terminal tool. There is one source of truth (the committed repo script) and no indirection.
 
 ## [0.13.0] - 2026-08-26
 
