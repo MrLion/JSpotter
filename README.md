@@ -34,9 +34,9 @@ Full setup guide: [docs/SETUP.md](docs/SETUP.md)
 Runs automatically every morning via Hermes cron. Results delivered to your Telegram.
 
 - **Daily job scan** — searches LinkedIn, scores new roles, and summarizes the day's matches.
-- **Email triage check** — scans the inbox (via `himalaya`) and flags employer emails as rejections, interview requests, application confirmations, or referrals, so nothing slips through.
+- **Email triage check** — scans the iCloud and Gmail inboxes (via `himalaya`) and flags employer emails as rejections, interviews, application confirmations, or referrals, so nothing slips through.
 
-The email triage results are cross-checked against your job journal by a bot before they reach you — so a rejection or interview request is only surfaced once it's confirmed against an application you actually made.
+The email triage results are cross-checked against your job journal by a bot before they reach you — so a rejection or interview is only surfaced once it's confirmed against an application you actually made.
 
 Setup guide: [docs/CRON.md](docs/CRON.md)
 

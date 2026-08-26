@@ -134,12 +134,13 @@ Rules:
 
 ## Daily Email Triage Check
 
-Runs every morning to scan the iCloud inbox (via `himalaya`) for employer emails and classify them as rejection / interview request / application confirmation / referral.
+Runs every morning to scan the **iCloud and Gmail** inboxes (via `himalaya`) for employer emails and classify them as rejection / interview / confirmation / referral.
 
 - Schedule: `0 9 * * *` (daily 9 AM)
-- Script: `scripts/email_triage.py` — reads the inbox via `himalaya`, dedupes across runs with a state file, and outputs classified candidates as JSON
+- Script: `scripts/email_triage.py` — reads both inboxes via `himalaya` (`-a icloud` / `-a gmail`), dedupes across runs with a state file (`output/email_triage_seen.json`), and outputs classified candidates as JSON
 - Delivers to Telegram + Bot Chat
-- The bot validates each flagged email against the job journal before reporting it, so rejections/interviews are only surfaced for applications that were actually made (avoids misattributing an email to a company never applied to). Rejections get flagged for status updates, interview requests are surfaced as action required.
+- The bot validates each flagged email against the job journal before reporting it, so rejections/interviews are only surfaced for applications that were actually made (avoids misattributing an email to a company never applied to). Rejections get flagged for status updates, interviews are surfaced as action required.
+- Type labels are plain words: `rejection`, `interview`, `confirmation`, `referral`. Interview detection matches the subject line (genuine interview emails carry "interview"/"onsite"/"screen" there) — body heuristics over-match on newsletter boilerplate.
 
 ## Troubleshooting
 
