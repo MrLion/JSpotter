@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## [0.13.1] - 2026-08-26
+
+### Added
+- **`scripts/email_triage.py` — email inbox triage scanner** — scans the iCloud inbox via `himalaya` for employer emails and classifies each into a type: `rejection`, `interview_request`, `application_confirmation`, `referral`, or unclassified. Outputs JSON to stdout for the daily cron to process. Genericized for the repo (env-overridable config via `EMJ_STATE`/`EMJ_MAILBOX`/`EMJ_WINDOW_DAYS`/`HIMALAYA_CMD`, machine-independent defaults, standard library only — no hardcoded credentials).
+
+### Changed
+- **`email_rejection_scan.py` renamed to `email_triage.py`** — the script now triages multiple signal types (interviews, confirmations, referrals) rather than only rejections, so it was renamed to match its expanded role. Classification priority: rejection > application_confirmation > referral > interview_request (confirmations are matched before interviews because they contain boilerplate like "interview resources"/"next steps"). JSON output adds a `type` field per candidate plus type `counts`; the existing `found_ts`/`window_days`/`total_scanned`/`new_candidates`/`all_candidate_ids` fields are preserved.
+- **`amazon.jobs` removed from the non-employer exclusion list** — Amazon now sends referral and application-confirmation emails that should be classified.
+
 ## [0.13.0] - 2026-08-26
 
 ### Added
