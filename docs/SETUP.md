@@ -39,7 +39,8 @@ JSpotter/
 │   ├── validate_tailoring.py   # Structural validation + auto-fix
 │   ├── run_batch_review.py     # Batch LLM review (multiple resumes in one call)
 │   ├── adapt_resume.py         # Same-company resume adapter
-│   └── run_review.py           # Single resume LLM review
+│   ├── run_review.py           # Single resume LLM review
+│   └── email_triage.py         # Email inbox triage (rejections/interviews/confirmations/referrals)
 ├── templates/                  # All templates (generic, no personal data)
 │   ├── MASTER_PROFILE.template.md
 │   ├── config.template.json
@@ -204,6 +205,7 @@ See **[docs/CRON.md](CRON.md)** for the full cron setup guide, including:
 | `adapt_resume.py` | Same-company resume adapter | ✅ candidate config | — |
 | `run_batch_review.py` | Batch LLM review (multiple resumes in one call) | — | — |
 | `run_review.py` | Single-resume LLM review dispatcher | — | — |
+| `email_triage.py` | Email inbox triage (rejections/interviews/confirmations/referrals) | — | — |
 
 ## Scoring
 
