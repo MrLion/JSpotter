@@ -11,7 +11,6 @@ tailoring_prompt_local.md
 theme.json
 run_daily.sh
 run_linkedin_sources.sh
-run_review.py
 journal.db
 
 # Personal / improvised content — keep local
