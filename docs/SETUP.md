@@ -144,10 +144,10 @@ Creates `journal.xlsx` with sheets: Jobs, Applications, Resume Versions, Referen
 ### 5. Run your first search
 
 ```bash
-# Browser-based LinkedIn search (reads keywords + locations from config.json)
+# LinkedIn search — fetches fresh jobs via LinkedIn's guest API (no browser/login needed)
 python3 scripts/search_linkedin.py
 
-# Browser-based Dice search (requires login, extracts company ATS URLs)
+# Dice search (requires login, extracts company ATS URLs)
 python3 scripts/search_dice.py
 
 # Add results to journal (dedup by App URL, then source URL, then company+title+location)
@@ -191,8 +191,8 @@ See **[docs/CRON.md](CRON.md)** for the full cron setup guide, including:
 
 | Script | Purpose | Reads config.json | Reads theme.json |
 |--------|---------|-------------------|-------------------|
-| `search_linkedin.py` | Browser-based LinkedIn job search | ✅ keywords, locations | — |
-| `search_dice.py` | Browser-based Dice job search (login required) | ✅ keywords, locations | — |
+| `search_linkedin.py` | LinkedIn job search via guest API (no browser/login) | ✅ keywords, locations | — |
+| `search_dice.py` | Dice job search (browser, login required) | ✅ keywords, locations | — |
 | `journal.py` | Journal management (init, add, status, validation, update_status) | ✅ journal path | — |
 | `run_scoring.py` | Fetch descriptions + calculate all scores | ✅ priority thresholds | — |
 | `match_score.py` | Match score algorithm (config-driven domains) | ✅ domains, location, thresholds | — |
@@ -201,6 +201,9 @@ See **[docs/CRON.md](CRON.md)** for the full cron setup guide, including:
 | `generate_pdf.py` | PDF generation with quality gate | ✅ output dir | ✅ all design |
 | `quality_gate.py` | Technical quality scoring (Gate 1, config-driven) | ✅ quality threshold, candidate config | — |
 | `validate_tailoring.py` | Structural validation + auto-fix (config-driven) | ✅ candidate config | — |
+| `adapt_resume.py` | Same-company resume adapter | ✅ candidate config | — |
+| `run_batch_review.py` | Batch LLM review (multiple resumes in one call) | — | — |
+| `run_review.py` | Single-resume LLM review dispatcher | — | — |
 
 ## Scoring
 
@@ -248,7 +251,7 @@ Only resumes passing both gates get clean PDFs. Resumes below Gate 2 threshold s
 
 ## Browser Configuration
 
-Set the browser engine to Playwright to avoid Chrome remote debugging approval popups (critical for unattended cron runs):
+The daily LinkedIn scan uses the guest API directly (no browser/login), so it runs unattended without browser access. A browser is only needed if you use the **Dice search** (`search_dice.py`), which requires login. If you automate Dice or other browser-based tasks, set the browser engine to Playwright to avoid Chrome remote debugging approval popups:
 
 ```bash
 hermes config set browser.engine playwright

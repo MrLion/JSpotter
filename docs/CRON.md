@@ -4,7 +4,7 @@ JSpotter uses Hermes cron jobs for automated daily tasks. This guide covers setu
 
 ## Browser Configuration
 
-Set the browser engine to Playwright to avoid Chrome remote debugging approval popups:
+The daily LinkedIn scan uses the guest API directly (no browser/login), so the cron runs unattended without browser access. A browser is only needed if you also automate the **Dice search** (`search_dice.py`), which requires login. If you do, set the browser engine to Playwright to avoid Chrome remote debugging approval popups:
 
 ```bash
 hermes config set browser.engine playwright
@@ -136,7 +136,7 @@ Rules:
 
 ### Chrome "Allow remote debugging?" popup blocks cron
 
-Chrome requires per-connection remote debugging approval which cron jobs can't provide. Fix:
+Chrome requires per-connection remote debugging approval which cron jobs can't provide. This only affects browser-based automation (e.g., the Dice search). Fix:
 ```bash
 hermes config set browser.engine playwright
 hermes gateway restart

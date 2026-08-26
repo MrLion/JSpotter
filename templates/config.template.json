@@ -1,30 +1,49 @@
 {
   "_comment": "Copy to config.json and customize. See docs/SETUP.md for details.",
   "candidate": {
-    "_comment": "Candidate name, career order, conflation metrics, and client keywords for validation. Set include_name_in_filename to false to omit the candidate name from generated PDF filenames.",
+    "_comment": "Candidate identity, career order, conflation detection, and client keyword config. Set include_name_in_filename to false to omit the candidate name from generated PDF filenames.",
     "name": "Your Name",
+    "full_name": "Your Full Legal Name",
     "career_order": [
       {"keywords": ["Employer1"], "dates": "(Year–Year)"},
       {"keywords": ["Employer2"], "dates": "(Year–Year)"}
     ],
-    "conflation_metrics": {},
-    "client_keywords": {}
+    "conflation_metrics": {
+      "_comment": "Map a metric string to the client/employer it belongs to. Prevents one engagement's metric being misattributed to another.",
+      "example_metric": ["employer_key"]
+    },
+    "client_keywords": {
+      "_comment": "Map a client key to the keywords that identify it in a job description.",
+      "employer_key": ["keyword1", "keyword2"]
+    },
+    "client_names_in_profile": {
+      "_comment": "Map a client key to the display name used on the resume for that client engagement.",
+      "employer_key": "Employer Display Name"
+    },
+    "bad_keywords": [
+      "Sole Proprietor",
+      "Entrepreneur"
+    ],
+    "pandering_phrases": [
+      "directly relevant to",
+      "well-suited for",
+      "perfectly aligned",
+      "ideal candidate",
+      "applicable to"
+    ],
+    "client_employment_regex": "\\bat (Employer1|Employer2)\\b",
+    "include_name_in_filename": true
   },
-"search": {
+  "search": {
     "keywords": "product manager AI",
     "locations": [
       {
-        "name": "Greater Boston",
-        "linkedin_filter": "Greater Boston"
-      },
-      {
-        "name": "Remote USA",
-        "linkedin_filter": "United States",
-        "remote_only": true
+        "name": "USA",
+        "linkedin_filter": "United States"
       }
     ],
     "max_results_per_search": 70,
-    "results_file": "output/linkedin_extract_today.json",
+    "results_file": "output/linkedin_extract.json",
     "title_filter_terms": ["manager", "director", "vp", "vice president", "head", "lead", "owner"]
   },
   "scoring": {
@@ -36,17 +55,83 @@
       "AI/ML": 8,
       "Healthcare": 12,
       "Finance": 8,
-      "Enterprise": 4,
+      "Capital Markets": 12,
+      "Enterprise/B2B": 4,
       "Cybersecurity": 8,
-      "E-commerce": 6,
-      "Infrastructure": 8,
-      "Mobile": 4
+      "E-commerce/Consumer": 6,
+      "Infrastructure/DevOps": 8,
+      "Mobile/Hardware": 4,
+      "Life Sciences/Bioprocessing": 12,
+      "Semiconductor/Materials R&D": 12,
+      "Public Sector/Transportation": 8
+    },
+    "domains": {
+      "AI/ML": {
+        "weight": 8,
+        "has_in_profile": true,
+        "keywords": ["ai", "ml", "machine learning", "genai", "llm", "artificial intelligence", "agentic", "ai agent", "generative ai"]
+      },
+      "Healthcare": {
+        "weight": 12,
+        "has_in_profile": true,
+        "keywords": ["healthcare", "health", "ehr", "clinical", "patient", "medical", "pharma", "biotech", "medicare", "insurance", "provider"]
+      },
+      "Finance": {
+        "weight": 8,
+        "has_in_profile": true,
+        "keywords": ["finance", "financial", "fintech", "banking", "payment processing", "financial compliance"]
+      },
+      "Capital Markets": {
+        "weight": 12,
+        "has_in_profile": false,
+        "keywords": ["trading", "capital markets", "investment bank", "portfolio management", "fixed income", "asset manager", "hedge fund"]
+      },
+      "Enterprise/B2B": {
+        "weight": 4,
+        "has_in_profile": true,
+        "keywords": ["enterprise", "b2b", "saas", "crm", "erp", "workflow", "automation", "digital transformation"]
+      },
+      "Cybersecurity": {
+        "weight": 8,
+        "has_in_profile": false,
+        "keywords": ["cybersecurity", "threat detection", "vulnerability management", "encryption", "security operations", "siem", "zero trust"]
+      },
+      "E-commerce/Consumer": {
+        "weight": 6,
+        "has_in_profile": false,
+        "keywords": ["ecommerce", "marketplace", "retail", "b2c", "consumer", "loyalty"]
+      },
+      "Infrastructure/DevOps": {
+        "weight": 8,
+        "has_in_profile": false,
+        "keywords": ["infrastructure", "devops", "kubernetes", "docker", "sre", "observability", "reliability"]
+      },
+      "Mobile/Hardware": {
+        "weight": 4,
+        "has_in_profile": false,
+        "keywords": ["mobile", "ios", "android", "hardware", "embedded", "firmware", "device", "iot"]
+      },
+      "Life Sciences/Bioprocessing": {
+        "weight": 12,
+        "has_in_profile": false,
+        "keywords": ["bioprocessing", "chromatography", "biologics", "biopharmaceutical", "fermentation", "cell culture", "purification", "gmp"]
+      },
+      "Semiconductor/Materials R&D": {
+        "weight": 12,
+        "has_in_profile": false,
+        "keywords": ["semiconductor", "materials science", "advanced materials", "silicon", "wafer", "thin film", "lithography"]
+      },
+      "Public Sector/Transportation": {
+        "weight": 8,
+        "has_in_profile": false,
+        "keywords": ["public sector", "transportation", "transit", "government", "municipal", "fleet", "scheduling", "dispatch"]
+      }
     },
     "candidate_domains": [
       "AI/ML",
       "Healthcare",
       "Finance",
-      "Enterprise"
+      "Enterprise/B2B"
     ],
     "location_preferences": {
       "exact_match": 10,
@@ -62,6 +147,12 @@
     "max_highlights": 4,
     "max_bullets_per_highlight": 5
   },
+  "journal": {
+    "path": "journal.xlsx",
+    "sheets": ["Jobs", "Applications", "Resume Versions", "Reference"]
+  },
+  "output_dir": "output",
+  "resume_dir": "resume/tailored",
   "credentials": {
     "_comment": "Local only — never push to repo. gitignore protects config.json.",
     "dice": {
@@ -74,7 +165,6 @@
     }
   },
   "dedup": {
-    "_comment": "Job board domains to filter out during Dice apply URL extraction",
     "job_board_domains": [
       "efinancialcareers.com",
       "indeed.com",
@@ -86,16 +176,5 @@
       "lensa.com",
       "theladders.com"
     ]
-  },
-  "journal": {
-    "path": "journal.xlsx",
-    "sheets": [
-      "Jobs",
-      "Applications",
-      "Resume Versions",
-      "Reference"
-    ]
-  },
-  "output_dir": "output",
-  "resume_dir": "resume/tailored"
+  }
 }
