@@ -3,7 +3,7 @@
 iCloud email triage scanner for a job search.
 
 Scans the iCloud inbox via himalaya for employer emails and classifies
-each into a type: rejection, interview_request, application_confirmation,
+each into a type: rejection, interview, confirmation,
 referral, or unknown (None). Prints classified candidates as JSON to
 stdout so a downstream consumer (cron agent) can act on them.
 
@@ -12,8 +12,8 @@ Output shape (one JSON object):
     "found_ts": ...,
     "window_days": N,
     "total_scanned": M,
-    "counts": {"rejection": n, "interview_request": n,
-               "application_confirmation": n, "referral": n, "other": n},
+    "counts": {"rejection": n, "interview": n,
+               "confirmation": n, "referral": n, "other": n},
     "new_candidates": [
       {"id": 23084, "date": ..., "from": ..., "subject": ...,
        "snippet": "...", "type": "rejection"}
@@ -201,7 +201,7 @@ def get_message_body(account, mid):
 def classify(subject, body):
     """Return a classification string, or None for unclassified.
 
-    Priority: rejection > application_confirmation > referral > interview_request.
+    Priority: rejection > confirmation > referral > interview.
 
     Order matters: an application-confirmation email often contains
     boilerplate words like "interview resources" or "next steps" — so we
@@ -222,14 +222,14 @@ def classify(subject, body):
     # Definitive application confirmation / under-review — before interview,
     # because these emails routinely mention "interview" as generic advice.
     if any(re.search(p, haystack) for p in APPLICATION_CONFIRM_PATTERNS):
-        return "application_confirmation"
+        return "confirmation"
 
     if any(re.search(p, haystack) for p in REFERRAL_PATTERNS):
         return "referral"
 
     # Interview requests: subject-only match.
     if any(re.search(p, subject_l) for p in INTERVIEW_PATTERNS):
-        return "interview_request"
+        return "interview"
 
     return None
 
