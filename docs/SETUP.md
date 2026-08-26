@@ -27,7 +27,7 @@
 ```
 JSpotter/
 ├── scripts/                    # Pipeline scripts
-│   ├── search_linkedin.py      # LinkedIn browser extraction
+│   ├── search_linkedin.py      # LinkedIn search via guest API (no browser/login)
 │   ├── search_dice.py          # Dice.com browser extraction (requires login)
 │   ├── journal.py              # Journal management (add, init, status, validation)
 │   ├── run_scoring.py          # Full scoring pipeline (match, ATS, interview prob)
