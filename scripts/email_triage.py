@@ -28,11 +28,18 @@ Configuration (env vars, all optional with defaults):
   EMJ_STATE        — path to the dedupe state file (default:
                      $XDG_STATE_HOME/email_rejection_seen.json, or
                      ~/.local/state/email_rejection_seen.json)
-  EMJ_MAILBOX      — himalaya mailbox to scan (default: Inbox)
+  EMJ_ACCOUNTS     — comma-separated himalaya accounts to scan
+                     (default: icloud,gmail)
+  EMJ_MAILBOX      — himalaya mailbox to scan per account (default: Inbox)
   EMJ_WINDOW_DAYS  — look back window in days (default: 3)
   HIMALAYA_CMD     — himalaya binary name/path (default: himalaya)
 
-Requires the `himalaya` CLI configured for the target account.
+Each candidate is tagged with its "account" (e.g. "icloud" or "gmail") so a
+downstream consumer knows which himalaya account holds the message. Because
+message IDs are per-account (iCloud and Gmail both number from 1), the dedupe
+state is keyed by "account:id".
+
+Requires the `himalaya` CLI configured for the target accounts.
 Standard library only — no third-party dependencies.
 """
 
@@ -56,6 +63,7 @@ def _default_state_file():
 
 STATE_FILE = os.environ.get("EMJ_STATE", _default_state_file())
 STATE_DIR = os.path.dirname(STATE_FILE)
+ACCOUNTS = [a.strip() for a in os.environ.get("EMJ_ACCOUNTS", "icloud,gmail").split(",") if a.strip()]
 MAILBOX = os.environ.get("EMJ_MAILBOX", "Inbox")
 WINDOW_DAYS = int(os.environ.get("EMJ_WINDOW_DAYS", "3"))
 HIMALAYA = os.environ.get("HIMALAYA_CMD", "himalaya")
@@ -92,24 +100,19 @@ STRONG_PATTERNS = [
 ]
 
 # Interview requests / scheduling invites (ACTION REQUIRED).
+# Requires concrete scheduling/request language. Bare "interview" or
+# "next step" alone is too noisy (newsletters and job fairs use those
+# words) — we only flag messages that actually ask to schedule/arrange
+# a call or give an interview status update.
 INTERVIEW_PATTERNS = [
-    r"interview",
-    r"phone screen",
-    r"screen.*call",
-    r"schedule.*(?:a |an |the )?(?:time|call|meeting|interview)",
-    r"let.{0,10}schedule",
-    r"next steps",
-    r"next step",
-    r"availability",
-    r"when.{0,20}available",
-    r"connect.*(?:call|chat|meet|zoom)",
-    r"let.?s talk",
-    r"would like to meet",
-    r"invite you to",
-    r"calendar invite",
-    r"zoom|webex|teams meeting",
-    r"phone interview",
+    r"(?:schedule|set up|arrange|book).{0,15}(?:interview|phone screen|screen|call|meeting|time)",
+    r"interview.{0,15}(?:invitation|invite|request|availability|scheduled|rescheduled|update|reminder|confirm)",
+    r"phone (?:screen|interview)",
     r"technical screen",
+    r"connect.{0,10}(?:call|chat|meet|zoom)",
+    r"invite you.{0,15}(?:interview|screen|call|meet)",
+    r"select.{0,15}(?:interview|screen)",
+    r"confirm.{0,15}(?:interview|slot|availability)",
 ]
 
 # Application received / under review (not a decision).
@@ -146,7 +149,11 @@ REFERRAL_PATTERNS = [
 # application-confirmation emails that we now want to classify.)
 NON_EMPLOYER = [
     "a16z", "fidelity", "charles schwab", "colonial volkswagen",
-    "santander", "social security", "national grid",
+    "santander", "social security", "national grid", "redfin",
+    "hbr executive", "hbr analytic", "the substack post", "nyc ferry",
+    "fundstrat", "malibu invest", "one knight in product", "john cutler",
+    "nick gerli", "rosco", "tom lee",
+    "rsm - shrewsbury", "rsm shrewsbury", "capital one",
 ]
 
 
@@ -172,21 +179,21 @@ def save_seen(ids):
         json.dump(sorted(ids), f)
 
 
-def get_envelopes():
-    """Fetch recent inbox envelopes as JSON via himalaya."""
-    out = run(f'{HIMALAYA} envelope list --mailbox "{MAILBOX}" --json --page-size 200')
+def get_envelopes(account):
+    """Fetch recent inbox envelopes as JSON via himalaya for an account."""
+    out = run(f'{HIMALAYA} -a {account} envelope list --mailbox "{MAILBOX}" --json --page-size 200')
     try:
         data = json.loads(out)
         return data.get("envelopes", [])
     except Exception as e:
-        print("ERR_PARSE_ENVELOPES", e, file=sys.stderr)
+        print(f"ERR_PARSE_ENVELOPES[{account}]", e, file=sys.stderr)
         print(out[:500], file=sys.stderr)
         return []
 
 
-def get_message_body(mid):
-    """Fetch message text (plain part) for a given envelope id."""
-    out = run(f'{HIMALAYA} message read --mailbox "{MAILBOX}" {mid} 2>/dev/null')
+def get_message_body(account, mid):
+    """Fetch message text (plain part) for a given envelope id in an account."""
+    out = run(f'{HIMALAYA} -a {account} message read --mailbox "{MAILBOX}" {mid} 2>/dev/null')
     # Strip HTML tags and long whitespace to get searchable text.
     text = re.sub(r"<[^>]+>", " ", out)
     text = re.sub(r"\s+", " ", text)
@@ -227,55 +234,64 @@ def classify(subject, body):
 
 def main():
     seen = load_seen()
-    envelopes = get_envelopes()
     now = datetime.now(timezone.utc)
     candidates = []
+    total_scanned = 0
 
-    for env in envelopes:
-        mid = env.get("id")
-        if not mid or str(mid) in seen:
-            continue
-        date_raw = env.get("date", "")
-        # Skip if outside window (best-effort parse)
-        try:
-            d = datetime.fromisoformat(date_raw.replace("Z", "+00:00"))
-        except Exception:
-            d = None
-        if d and (now - d).days > WINDOW_DAYS:
-            continue
-        subject = env.get("subject", "") or ""
-        frm = " ".join(a.get("name", "") or a.get("email", "") for a in env.get("from", []))
-        frm_l = frm.lower()
-        if any(x in frm_l for x in NON_EMPLOYER):
-            continue
+    for account in ACCOUNTS:
+        envelopes = get_envelopes(account)
+        total_scanned += len(envelopes)
 
-        body = get_message_body(mid)
-        etype = classify(subject, body)
-        if etype:
-            candidates.append({
-                "id": str(mid),
-                "date": date_raw,
-                "from": frm,
-                "subject": subject,
-                "snippet": body[:200],
-                "type": etype,
-            })
+        for env in envelopes:
+            mid = env.get("id")
+            if not mid:
+                continue
+            key = f"{account}:{mid}"
+            if key in seen:
+                continue
+            date_raw = env.get("date", "")
+            # Skip if outside window (best-effort parse)
+            try:
+                d = datetime.fromisoformat(date_raw.replace("Z", "+00:00"))
+            except Exception:
+                d = None
+            if d and (now - d).days > WINDOW_DAYS:
+                continue
+            subject = env.get("subject", "") or ""
+            frm = " ".join(a.get("name", "") or a.get("email", "") for a in env.get("from", []))
+            frm_l = frm.lower()
+            if any(x in frm_l for x in NON_EMPLOYER):
+                continue
+
+            body = get_message_body(account, mid)
+            etype = classify(subject, body)
+            if etype:
+                candidates.append({
+                    "account": account,
+                    "id": str(mid),
+                    "date": date_raw,
+                    "from": frm,
+                    "subject": subject,
+                    "snippet": body[:200],
+                    "type": etype,
+                })
 
     # Report only NEW candidates (not previously seen).
-    new_candidates = [c for c in candidates if c["id"] not in seen]
+    new_candidates = [c for c in candidates if f"{c['account']}:{c['id']}" not in seen]
 
     # Mark all detected candidate IDs as seen so each email is reported only once.
-    seen.update(c["id"] for c in candidates)
+    seen.update(f"{c['account']}:{c['id']}" for c in candidates)
     save_seen(seen)
 
     counts = Counter(c["type"] for c in candidates)
     result = {
         "found_ts": now.isoformat(),
         "window_days": WINDOW_DAYS,
-        "total_scanned": len(envelopes),
+        "accounts": ACCOUNTS,
+        "total_scanned": total_scanned,
         "counts": dict(counts),
         "new_candidates": new_candidates,
-        "all_candidate_ids": [c["id"] for c in candidates],
+        "all_candidate_ids": [f"{c['account']}:{c['id']}" for c in candidates],
     }
     print(json.dumps(result, indent=2))
 
