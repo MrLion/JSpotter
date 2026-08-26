@@ -132,6 +132,15 @@ Rules:
 - Pitches must NOT start with "I" or center on the user's experience
 - See `LINKEDIN_IDEAS_TEMPLATE.md` for the format
 
+## Daily Email Triage Check
+
+Runs every morning to scan the iCloud inbox (via `himalaya`) for employer emails and classify them as rejection / interview request / application confirmation / referral.
+
+- Schedule: `0 9 * * *` (daily 9 AM)
+- Script: `scripts/email_triage.py` — reads the inbox via `himalaya`, dedupes across runs with a state file, and outputs classified candidates as JSON
+- Delivers to Telegram + Bot Chat
+- Each classified email is matched against the journal; rejections get flagged for status updates, interview requests are surfaced as action required
+
 ## Troubleshooting
 
 ### Chrome "Allow remote debugging?" popup blocks cron
