@@ -27,13 +27,13 @@ PYBIN="/path/to/python3"
 cd "/path/to/Job hunting" || exit 1
 
 echo "=== Step 1: LinkedIn Search ==="
-PYTHONPATH="" "$PYBIN" search_linkedin.py 2>&1
+PYTHONPATH="" "$PYBIN" scripts/search_linkedin.py 2>&1
 
 echo "=== Step 2: Add to Journal ==="
-PYTHONPATH="" "$PYBIN" journal.py --add output/linkedin_extract.json 2>&1
+PYTHONPATH="" "$PYBIN" scripts/journal.py --add output/linkedin_extract.json 2>&1
 
 echo "=== Step 3: Score New Jobs ==="
-PYTHONPATH="" "$PYBIN" run_scoring.py 2>&1
+PYTHONPATH="" "$PYBIN" scripts/run_scoring.py 2>&1
 
 echo "=== DONE ==="
 ```
