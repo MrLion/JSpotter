@@ -9,23 +9,23 @@ Searches LinkedIn Jobs for PM roles in two modes:
 Extracts job listings via JavaScript, outputs CSV + Markdown.
 
 Usage:
-  python3 search_linkedin.py              # search both Boston + Remote
-  python3 search_linkedin.py --boston      # Boston only
-  python3 search_linkedin.py --remote      # Remote only
-  python3 search_linkedin.py --keywords "principal product manager AI"
+  python3 scripts/search_linkedin.py          # fetch fresh jobs via guest API
+  python3 scripts/search_linkedin.py --input output/linkedin_extract.json  # process pre-extracted jobs
 """
 
 import argparse
 import csv
+import html
 import json
 import os
+import re
 import subprocess
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 OUTPUT_DIR = BASE_DIR / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
 CONFIG_PATH = BASE_DIR / "config.json"
@@ -103,7 +103,7 @@ def extract_jobs_from_browser():
     Uses the browser_console tool via subprocess to call the Hermes API.
     Since we can't call browser tools from Python directly, we use a different approach:
     we'll write results to a temp file via JavaScript and read it.
-    
+
     Actually — this script is designed to be orchestrated BY the Hermes agent.
     The agent will:
     1. Navigate to LinkedIn search URL
@@ -111,7 +111,7 @@ def extract_jobs_from_browser():
     3. Scroll to load results
     4. Run extract JS
     5. Save results
-    
+
     This script handles the orchestration logic and output formatting.
     The actual browser interaction is done by the agent calling browser tools.
     """
@@ -149,6 +149,73 @@ def build_search_urls(config, keywords, boston=True, remote=True):
         })
 
     return urls
+
+
+# Guest API pagination endpoint — returns the same <li> job cards as the browser page
+GUEST_API = ("https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
+             "?keywords={keywords}&location={location}&sortBy=DD&start={start}")
+
+LI_RE = re.compile(r"<li[^>]*>.*?</li>", re.S)
+TITLE_RE = re.compile(r'<h3[^>]*class="[^"]*base-search-card__title[^"]*"[^>]*>(.*?)</h3>', re.S)
+COMPANY_RE = re.compile(r'<h4[^>]*class="[^"]*base-search-card__subtitle[^"]*"[^>]*>(.*?)</h4>', re.S)
+LOC_RE = re.compile(r'<span[^>]*class="[^"]*job-search-card__location[^"]*"[^>]*>(.*?)</span>', re.S)
+LINK_RE = re.compile(r'<a[^>]*class="[^"]*base-card__full-link[^"]*"[^>]*href="([^"]+)"', re.S)
+STRIP_RE = re.compile(r"<[^>]+>")
+
+UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+
+
+def _clean(s):
+    return html.unescape(STRIP_RE.sub(" ", s or "")).strip()
+
+
+def _curl(url):
+    r = subprocess.run(
+        ["curl", "-s", "--max-time", "40", "-A", UA,
+         "-H", "Accept-Language: en-US,en;q=0.9",
+         "-H", "Accept: text/html,application/xhtml+xml",
+         url],
+        capture_output=True, text=True)
+    return r.stdout or ""
+
+
+def _parse_cards(page_html):
+    out = []
+    for li in LI_RE.findall(page_html):
+        if "jobs/view/" not in li:
+            continue
+        m = LINK_RE.search(li)
+        if not m:
+            continue
+        url = m.group(1).split("?")[0]
+        title = _clean(TITLE_RE.search(li).group(1)) if TITLE_RE.search(li) else ""
+        company = _clean(COMPANY_RE.search(li).group(1)) if COMPANY_RE.search(li) else ""
+        location = _clean(LOC_RE.search(li).group(1)) if LOC_RE.search(li) else ""
+        if title and title != "See who Arcadia has hired for this role":
+            out.append({"title": title, "company": company,
+                        "location": location, "url": url})
+    return out
+
+
+def fetch_jobs_from_guest_api(keywords, location, max_start=250):
+    """Fetch job listings from LinkedIn's guest API via curl. No browser needed."""
+    from urllib.parse import quote
+    kw = quote(keywords)
+    loc = quote(location)
+    all_jobs, seen = [], set()
+    for start in range(0, max_start + 1, 25):
+        htmltxt = _curl(GUEST_API.format(keywords=kw, location=loc, start=start))
+        cards = _parse_cards(htmltxt)
+        for c in cards:
+            if c["url"] not in seen:
+                seen.add(c["url"])
+                all_jobs.append(c)
+        print(f"  start={start}: {len(cards)} cards, total unique {len(all_jobs)}", flush=True)
+        if len(cards) < 10:  # page exhausted / blocked
+            break
+        time.sleep(1.5)
+    return all_jobs
 
 
 def dedupe_jobs(jobs):
@@ -259,28 +326,19 @@ def main():
     date_str = datetime.now().strftime("%Y-%m-%d")
     
     if args.input:
-    # Read pre-extracted jobs from JSON file (from browser extraction)
+        # Read pre-extracted jobs from JSON file (from browser extraction)
         with open(args.input) as f:
             jobs = json.load(f)
         print(f"Loaded {len(jobs)} jobs from {args.input}")
     else:
-        # Print search URLs for the agent to navigate to
-        urls = build_search_urls(config, args.keywords, boston=search_boston, remote=search_remote)
-        print("SEARCH_URLS:")
-        for u in urls:
-            print(f"  {u['mode']}: {u['url']}")
-        print()
-        print("EXTRACT_JS:")
-        print(EXTRACT_JS)
-        print()
-        print("INSTRUCTIONS:")
-        print("1. Navigate to each search URL")
-        print("2. Dismiss sign-in dialog if it appears")
-        print("3. Scroll down 3-4 times to load more results")
-        print("4. Run EXTRACT_JS to get job listings")
-        print("5. Save results to output/linkedin_extract.json")
-        print("6. Re-run: python3 search_linkedin.py --input output/linkedin_extract.json")
-        return
+        # Fetch fresh listings from LinkedIn's guest API (no browser needed)
+        print("Fetching jobs from LinkedIn guest API...")
+        jobs = []
+        for loc in config.get("search", {}).get("locations", []):
+            location_str = loc.get("linkedin_filter", loc.get("name", "United States"))
+            print(f"  Searching: {location_str}")
+            jobs.extend(fetch_jobs_from_guest_api(args.keywords, location_str))
+        print(f"Fetched {len(jobs)} raw jobs")
     
     # Process extracted jobs
     jobs = dedupe_jobs(jobs)
@@ -292,10 +350,15 @@ def main():
     md_path = save_markdown(jobs, date_str)
     json_path = save_raw_json(jobs, date_str)
     
+    # Also write the canonical extract file the journal reads
+    with open(OUTPUT_DIR / "linkedin_extract.json", "w") as f:
+        json.dump(jobs, f, indent=2)
+    
     print(f"\nSaved:")
     print(f"  CSV:  {csv_path}")
     print(f"  MD:   {md_path}")
     print(f"  JSON: {json_path}")
+    print(f"  EXTRACT: {OUTPUT_DIR / 'linkedin_extract.json'}")
 
 
 if __name__ == "__main__":

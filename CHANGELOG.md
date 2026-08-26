@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## [0.13.0] - 2026-08-26
+
+### Added
+- **`search_linkedin.py` self-fetching via LinkedIn guest API** — the script now fetches fresh job listings directly via curl (`jobs-guest/jobs/api/seeMoreJobPostings/search`), no browser or manual extraction needed. Running `python3 scripts/search_linkedin.py` fetches, dedups, filters, and writes `output/linkedin_extract.json` in one step. Fixes the daily cron silently re-processing stale extracts and reporting "0 new jobs".
+
+### Changed
+- **Scripts moved to `scripts/` folder** — all pipeline scripts relocated from the repo root into `scripts/`, with `BASE_DIR` updated to `Path(__file__).parent.parent` so they resolve `config.json`, `journal.xlsx`, `resume/`, and `output/` from the project root. `run_daily.sh` and docs updated to reference `scripts/`.
+
 ## [0.12.1] - 2026-08-22
 
 ### Fixed

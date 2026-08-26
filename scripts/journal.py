@@ -30,7 +30,7 @@ except ImportError:
     print("Error: openpyxl not installed. Run: pip3 install openpyxl")
     sys.exit(1)
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 JOURNAL_PATH = BASE_DIR / "journal.xlsx"
 
 # ─── Column definitions ───

@@ -6,6 +6,27 @@ output/
 *.env
 config.json
 
+# Local-only pipeline files (kept out of public repo)
+tailoring_prompt_local.md
+theme.json
+run_daily.sh
+run_linkedin_sources.sh
+run_review.py
+journal.db
+
+# Personal / improvised content — keep local
+.hermes/
+interview_prep/
+linkedin/
+
+# Local working docs — not tracked (canonical copies live in docs/ or templates/)
+IDEA.md
+WEB_APP_DESIGN.md
+LINKEDIN_IDEAS_TEMPLATE.md
+TELEGRAM_TEMPLATE.md
+review_prompt_template.md
+tailoring_prompt_template.md
+
 # Python
 __pycache__/
 *.pyc

@@ -26,7 +26,7 @@ except ImportError:
     print("openpyxl required")
     sys.exit(1)
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 JOURNAL = BASE_DIR / "journal.xlsx"
 PROFILE_PATH = BASE_DIR / "resume" / "MASTER_PROFILE.md"
 DESCS_DIR = BASE_DIR / "output"

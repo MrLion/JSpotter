@@ -24,7 +24,7 @@ import sys
 import re
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 
 def load_candidate_config():
     config_path = BASE_DIR / "config.json"

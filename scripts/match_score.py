@@ -51,7 +51,7 @@ except ImportError:
     print("openpyxl required")
     sys.exit(1)
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 JOURNAL = BASE_DIR / "journal.xlsx"
 PROFILE_PATH = BASE_DIR / "resume" / "MASTER_PROFILE.md"
 DESCS_PATH = BASE_DIR / "output" / "descriptions_2026-07-14.json"
@@ -215,7 +215,7 @@ def score_years_requirement(desc_lower):
 
 def score_location(location_lower, preferred_location=None):
     if preferred_location is None:
-        config_path = Path(__file__).parent / "config.json"
+        config_path = Path(__file__).parent.parent / "config.json"
         with open(config_path) as f:
             config = json.load(f)
         preferred_location = config.get("scoring", {}).get("preferred_location", "")

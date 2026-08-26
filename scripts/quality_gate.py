@@ -24,7 +24,7 @@ from pathlib import Path
 
 # Load candidate config
 try:
-    with open(Path(__file__).parent / "config.json") as f:
+    with open(Path(__file__).parent.parent / "config.json") as f:
         _cfg = json.load(f)
     _cand = _cfg.get("candidate", {})
     CANDIDATE_FULL_NAME = _cand.get("full_name", "")
