@@ -139,7 +139,7 @@ Runs every morning to scan the iCloud inbox (via `himalaya`) for employer emails
 - Schedule: `0 9 * * *` (daily 9 AM)
 - Script: `scripts/email_triage.py` — reads the inbox via `himalaya`, dedupes across runs with a state file, and outputs classified candidates as JSON
 - Delivers to Telegram + Bot Chat
-- Each classified email is matched against the journal; rejections get flagged for status updates, interview requests are surfaced as action required
+- The bot validates each flagged email against the job journal before reporting it, so rejections/interviews are only surfaced for applications that were actually made (avoids misattributing an email to a company never applied to). Rejections get flagged for status updates, interview requests are surfaced as action required.
 
 ## Troubleshooting
 
