@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 """
-iCloud email rejection scanner for a job search.
+iCloud email classifier for a job search.
 
-Scans the iCloud inbox via himalaya for employer rejection emails
-(sent in the last N days) and prints them as JSON to stdout so a
-downstream consumer (cron agent) can validate them against a job
-journal and notify the user.
+Scans the iCloud inbox via himalaya for employer emails and classifies
+each into a type: rejection, interview_request, application_confirmation,
+referral, or unknown (None). Prints classified candidates as JSON to
+stdout so a downstream consumer (cron agent) can act on them.
 
 Output shape (one JSON object):
   {
     "found_ts": ...,
     "window_days": N,
     "total_scanned": M,
+    "counts": {"rejection": n, "interview_request": n,
+               "application_confirmation": n, "referral": n, "other": n},
     "new_candidates": [
-      {"id": 23084, "date": ..., "from": ..., "subject": ..., "snippet": "..."}
+      {"id": 23084, "date": ..., "from": ..., "subject": ...,
+       "snippet": "...", "type": "rejection"}
     ],
     "all_candidate_ids": [...]
   }
@@ -38,6 +41,7 @@ import os
 import re
 import subprocess
 import sys
+from collections import Counter
 from datetime import datetime, timezone
 
 # --- Configuration (env-overridable, machine-independent defaults) ----------
@@ -56,7 +60,10 @@ MAILBOX = os.environ.get("EMJ_MAILBOX", "Inbox")
 WINDOW_DAYS = int(os.environ.get("EMJ_WINDOW_DAYS", "3"))
 HIMALAYA = os.environ.get("HIMALAYA_CMD", "himalaya")
 
-# Rejection signals found in subject OR body text.
+# --- Classification signals (matched against subject + body, lowercased) ----
+
+# Definite rejection — checked first so a "thank you for applying" email
+# that also says "unable to offer" is NOT miscounted as a confirmation.
 REJECT_PATTERNS = [
     r"not moving forward",
     r"no longer (?:recruiting|considering|being)",
@@ -65,15 +72,16 @@ REJECT_PATTERNS = [
     r"will not be (?:moving|proceeding)",
     r"decided not to",
     r"another candidate",
-    r"unfortunately",
     r"we regret to inform",
     r"position.*has been filled",
     r"do not match.*qualifications",
     r"no longer under consideration",
     r"is no longer available",
+    r"will not be advancing",
+    r"not selected for",
 ]
 
-# Stronger signals = definite rejection; these override ambiguous ones.
+# Stronger rejection signals; "unfortunately" alone is weak.
 STRONG_PATTERNS = [
     r"not moving forward",
     r"unable to offer",
@@ -83,10 +91,62 @@ STRONG_PATTERNS = [
     r"we regret to inform",
 ]
 
-# Known non-employer senders to exclude (finance/news/notifications).
+# Interview requests / scheduling invites (ACTION REQUIRED).
+INTERVIEW_PATTERNS = [
+    r"interview",
+    r"phone screen",
+    r"screen.*call",
+    r"schedule.*(?:a |an |the )?(?:time|call|meeting|interview)",
+    r"let.{0,10}schedule",
+    r"next steps",
+    r"next step",
+    r"availability",
+    r"when.{0,20}available",
+    r"connect.*(?:call|chat|meet|zoom)",
+    r"let.?s talk",
+    r"would like to meet",
+    r"invite you to",
+    r"calendar invite",
+    r"zoom|webex|teams meeting",
+    r"phone interview",
+    r"technical screen",
+]
+
+# Application received / under review (not a decision).
+APPLICATION_CONFIRM_PATTERNS = [
+    r"thank you for applying",
+    r"thanks for applying",
+    r"thank you for your interest",
+    r"thank you for your application",
+    r"application received",
+    r"received your application",
+    r"received your resume",
+    r"we received your application",
+    r"under review",
+    r"currently reviewing",
+    r"we are reviewing your application",
+    r"application has been submitted",
+    r"keep track of its status",
+    r"you have applied",
+]
+
+# Referrals / recommendations.
+REFERRAL_PATTERNS = [
+    r"referred you to",
+    r"has referred you",
+    r"has recommended you",
+    r"referred you for",
+    r"referred you for a role",
+    r"you were referred",
+    r"recommended you for",
+]
+
+# Known non-employer / newsletter senders to exclude entirely.
+# (amazon.jobs is intentionally NOT here — Amazon sends referral and
+# application-confirmation emails that we now want to classify.)
 NON_EMPLOYER = [
     "a16z", "fidelity", "charles schwab", "colonial volkswagen",
-    "santander", "amazon.jobs",  # amazon jobs application-confirmation (not rejection, handled by journal check)
+    "santander", "social security", "national grid",
 ]
 
 
@@ -133,15 +193,36 @@ def get_message_body(mid):
     return text.lower()
 
 
-def is_rejection(subject, body):
-    """Decide whether a message is a rejection."""
+def classify(subject, body):
+    """Return a classification string, or None for unclassified.
+
+    Priority: rejection > application_confirmation > referral > interview_request.
+
+    Order matters: an application-confirmation email often contains
+    boilerplate words like "interview resources" or "next steps" — so we
+    must match the definitive confirmation FIRST. "Interview request" is
+    reserved for messages that actually ask to schedule/arrange a meeting.
+    """
     haystack = (subject + " " + body).lower()
-    strong_hit = any(re.search(p, haystack) for p in STRONG_PATTERNS)
-    any_hit = any(re.search(p, haystack) for p in REJECT_PATTERNS)
-    # "unfortunately" alone is weak; require a stronger signal alongside.
-    if any_hit and ("unfortunately" not in haystack or strong_hit):
-        return True
-    return False
+
+    # Rejection first (strong signal wins over a "thank you" confirmation).
+    strong = any(re.search(p, haystack) for p in STRONG_PATTERNS)
+    any_reject = any(re.search(p, haystack) for p in REJECT_PATTERNS)
+    if any_reject and ("unfortunately" not in haystack or strong):
+        return "rejection"
+
+    # Definitive application confirmation / under-review — before interview,
+    # because these emails routinely mention "interview" as generic advice.
+    if any(re.search(p, haystack) for p in APPLICATION_CONFIRM_PATTERNS):
+        return "application_confirmation"
+
+    if any(re.search(p, haystack) for p in REFERRAL_PATTERNS):
+        return "referral"
+
+    if any(re.search(p, haystack) for p in INTERVIEW_PATTERNS):
+        return "interview_request"
+
+    return None
 
 
 def main():
@@ -169,13 +250,15 @@ def main():
             continue
 
         body = get_message_body(mid)
-        if is_rejection(subject, body):
+        etype = classify(subject, body)
+        if etype:
             candidates.append({
                 "id": str(mid),
                 "date": date_raw,
                 "from": frm,
                 "subject": subject,
                 "snippet": body[:200],
+                "type": etype,
             })
 
     # Report only NEW candidates (not previously seen).
@@ -185,10 +268,12 @@ def main():
     seen.update(c["id"] for c in candidates)
     save_seen(seen)
 
+    counts = Counter(c["type"] for c in candidates)
     result = {
         "found_ts": now.isoformat(),
         "window_days": WINDOW_DAYS,
         "total_scanned": len(envelopes),
+        "counts": dict(counts),
         "new_candidates": new_candidates,
         "all_candidate_ids": [c["id"] for c in candidates],
     }
