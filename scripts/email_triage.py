@@ -11,6 +11,7 @@ Output shape (one JSON object):
   {
     "found_ts": ...,
     "window_days": N,
+    "accounts": ["icloud", "gmail"],
     "total_scanned": M,
     "counts": {"rejection": n, "interview": n,
                "confirmation": n, "referral": n, "other": n},
@@ -20,6 +21,9 @@ Output shape (one JSON object):
     ],
     "all_candidate_ids": [...]
   }
+
+Counts and new_candidates both reflect only NEW candidates (not seen in
+prior runs); all_candidate_ids lists every candidate detected this run.
 
 Dedupes across runs using a state file so the same email is only
 reported once.
@@ -288,7 +292,9 @@ def main():
     seen.update(f"{c['account']}:{c['id']}" for c in candidates)
     save_seen(seen)
 
-    counts = Counter(c["type"] for c in candidates)
+    # Counts reflect NEW candidates only, so consumers keyed on counts
+    # don't re-report emails already delivered in a previous run.
+    counts = Counter(c["type"] for c in new_candidates)
     result = {
         "found_ts": now.isoformat(),
         "window_days": WINDOW_DAYS,

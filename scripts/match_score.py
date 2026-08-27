@@ -43,7 +43,6 @@ import json
 import re
 import sys
 from pathlib import Path
-from datetime import datetime
 
 try:
     from openpyxl import load_workbook
@@ -115,7 +114,7 @@ SKILL_CATEGORIES = {
 
 
 def score_domain_match(desc_lower, profile_lower):
-    """Score domain alignment (35 pts max)."""
+    """Score domain alignment (40 pts max)."""
     matched_weight = 0
     total_weight = 0
     matched_domains = []
@@ -254,7 +253,7 @@ def calculate_match_score(job, description, profile_text):
     title_lower = job.get("title", "").lower()
     location_lower = job.get("location", "").lower()
 
-    # 1. Domain match (35 pts)
+    # 1. Domain match (40 pts)
     domain_score, matched_domains, missing_domains = score_domain_match(desc_lower, profile_lower)
 
     # 2. Skill match (25 pts)

@@ -124,6 +124,7 @@ def save_batch_reviews(batch_json_path, resumes):
         reviews = json.load(f)
     
     output_dir = Path('resume/tailored')
+    output_dir.mkdir(parents=True, exist_ok=True)
     
     for review in reviews:
         company = review.get('company', 'Unknown')
@@ -168,33 +169,41 @@ def save_batch_reviews(batch_json_path, resumes):
         print(f"  {company} — {title}: HR={hr_score} HM={hm_score} {status}")
 
 
+BATCH_REVIEW_PATH = Path('resume/tailored/batch_review.json')
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python3 run_batch_review.py <resume1.json> <resume2.json> [resume3.json] ...")
+        print("       python3 run_batch_review.py --save [batch_review.json]")
         print("Reviews multiple resumes in one subagent call. Up to 4 resumes per batch.")
         sys.exit(1)
-    
-    resume_paths = sys.argv[1:]
+
+    if '--save' in sys.argv:
+        # Split the subagent's batch review JSON into per-resume notes files.
+        args = [a for a in sys.argv[2:] if a != '--save']
+        batch_path = Path(args[0]) if args else BATCH_REVIEW_PATH
+        save_batch_reviews(batch_path, [])
+        return
+
+    resume_paths = [a for a in sys.argv[1:] if a != '--save']
     if len(resume_paths) > 4:
         print(f"Warning: {len(resume_paths)} resumes provided, max 4 per batch. Processing first 4.")
         resume_paths = resume_paths[:4]
-    
+
     prompt, resumes = build_batch_review_prompt(resume_paths)
-    
+
     # Write prompt to file for subagent dispatch
     prompt_path = Path('output/batch_review_prompt.txt')
     prompt_path.write_text(prompt)
-    
+
     print(f"Generated batch review prompt for {len(resumes)} resumes")
     print(f"Prompt saved to: {prompt_path}")
-    print(f"Dispatch to subagent with goal: 'Read the prompt at {prompt_path.absolute()} and write the review JSON array to resume/tailored/batch_review.json'")
+    print(f"Dispatch to subagent with goal: 'Read the prompt at {prompt_path.absolute()} and write the review JSON array to {BATCH_REVIEW_PATH.absolute()}'")
     print()
     print("After subagent completes, run:")
     print(f"  python3 run_batch_review.py --save")
 
 
 if __name__ == '__main__':
-    if '--save' in sys.argv:
-        save_batch_reviews(Path('resume/tailored/batch_review.json'), [])
-    else:
-        main()
+    main()

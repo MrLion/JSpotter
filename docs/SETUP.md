@@ -9,7 +9,7 @@
 
 2. **Required packages**
    ```bash
-   pip install openpyxl reportlab Pillow
+   pip install openpyxl reportlab
    ```
 
 3. **Hermes Agent** (for LLM scoring and resume tailoring)
@@ -274,10 +274,9 @@ Tailored resume files are organized by application status:
 resume/tailored/           — PDFs + review notes TXT (not yet applied)
 resume/tailored/applied/    — PDFs + review notes TXT (applied jobs)
 resume/tailored/archived/   — PDFs + TXTs (rejected/closed/withdrawn)
-resume/tailored/reviews/    — Review JSON files (all statuses)
 ```
 
-Use `update_status()` from `journal.py` to move files automatically when status changes.
+Use `update_status()` from `journal.py` to move files automatically when status changes. Note that `update_status()` moves PDFs/TXTs only — any stray `*_review.json` files must be moved by hand.
 
 ## Descriptions Cache
 

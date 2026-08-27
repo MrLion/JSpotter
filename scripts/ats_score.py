@@ -14,10 +14,8 @@ Updates journal.xlsx with recalculated ATS scores.
 """
 
 import json
-import re
 import sys
 from pathlib import Path
-from datetime import datetime
 
 try:
     from openpyxl import load_workbook

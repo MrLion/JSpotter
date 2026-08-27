@@ -15,7 +15,6 @@ import re
 import subprocess
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -30,6 +29,7 @@ BASE_DIR = Path(__file__).parent.parent
 JOURNAL = BASE_DIR / "journal.xlsx"
 PROFILE_PATH = BASE_DIR / "resume" / "MASTER_PROFILE.md"
 DESCS_DIR = BASE_DIR / "output"
+CONFIG_PATH = BASE_DIR / "config.json"
 
 # Import scoring algorithms
 sys.path.insert(0, str(BASE_DIR))
@@ -94,7 +94,6 @@ def main():
     # Load profile
     with open(PROFILE_PATH) as f:
         profile = f.read()
-    profile_lower = profile.lower()
 
     # Load existing descriptions cache
     desc_path = DESCS_DIR / "descriptions_cache.json"
@@ -154,8 +153,8 @@ def main():
                 job = future_to_job[future]
                 try:
                     desc = future.result()
-                    if desc and j["url"] not in descriptions:
-                        descriptions[j["url"]] = desc
+                    if desc and job["url"] not in descriptions:
+                        descriptions[job["url"]] = desc
                         fetched += 1
                 except Exception:
                     pass
@@ -180,6 +179,16 @@ def main():
     # Score each unscored job
     print(f"\nScoring {len(unscored)} jobs...")
     scored = 0
+
+    # Priority thresholds — read from config once
+    try:
+        with open(CONFIG_PATH) as _f:
+            _cfg = json.load(_f)
+        _high_thresh = _cfg.get("scoring", {}).get("priority_thresholds", {}).get("high", 80)
+        _med_thresh = _cfg.get("scoring", {}).get("priority_thresholds", {}).get("medium", 65)
+    except Exception:
+        _high_thresh, _med_thresh = 80, 65
+
     for job in unscored:
         desc = descriptions.get(job["url"], "")
         row_idx = job["row"]
@@ -198,16 +207,6 @@ def main():
         ats_score, ats_details = calculate_ats_score(desc, profile)
         match_score, match_details = calculate_match_score(job, desc, profile)
         prob = calculate_interview_prob(match_score, ats_score, job["title"], desc, job["location"])
-
-        # Determine priority — read thresholds from config
-        import json as _json
-        try:
-            with open("config.json") as _f:
-                _cfg = _json.load(_f)
-            _high_thresh = _cfg.get("scoring", {}).get("priority_thresholds", {}).get("high", 80)
-            _med_thresh = _cfg.get("scoring", {}).get("priority_thresholds", {}).get("medium", 65)
-        except:
-            _high_thresh, _med_thresh = 80, 65
 
         if match_score >= _high_thresh:
             priority = "High"

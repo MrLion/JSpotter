@@ -13,7 +13,6 @@ Usage:
 
 import argparse
 import json
-import re
 import subprocess
 import sys
 from datetime import datetime

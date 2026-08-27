@@ -6,7 +6,7 @@ Searches Dice.com for PM roles in two modes:
   1. Greater Boston (local)
   2. Remote in USA
 
-Extracts job listings via JavaScript, outputs CSV + Markdown + JSON.
+Browser-based extraction (login required); processed jobs are output as JSON.
 
 Usage:
   python3 search_dice.py              # print search URLs + JS for browser extraction
@@ -17,7 +17,6 @@ Usage:
 """
 
 import argparse
-import csv
 import json
 import sys
 from datetime import datetime

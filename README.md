@@ -54,7 +54,7 @@ Setup guide: [docs/CRON.md](docs/CRON.md)
 ## Requirements
 
 - Python 3.10+
-- Packages: openpyxl, reportlab, Pillow
+- Packages: openpyxl, reportlab
 - [Hermes Agent](https://hermes-agent.nousresearch.com/) (for resume tailoring and job scoring)
 
 ## License

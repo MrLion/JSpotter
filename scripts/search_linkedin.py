@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
-LinkedIn Jobs Search Pipeline — browser-based, no login required.
+LinkedIn Jobs Search Pipeline — guest API, no browser/login required.
 
-Searches LinkedIn Jobs for PM roles in two modes:
-  1. Greater Boston (local)
-  2. Remote in USA
+Searches LinkedIn Jobs for PM roles across every location defined in
+config.json → search.locations. Each job is tagged with the search mode
+of the location it came from ("boston", "remote", or the location name),
+so downstream reporting (CSV/Markdown, journal Source column) can group
+by mode.
 
-Extracts job listings via JavaScript, outputs CSV + Markdown.
+Extracts job listings via LinkedIn's guest API, outputs CSV + Markdown.
 
 Usage:
   python3 scripts/search_linkedin.py          # fetch fresh jobs via guest API
-  python3 scripts/search_linkedin.py --input output/linkedin_extract.json  # process pre-extracted jobs
 """
 
 import argparse
 import csv
 import html
 import json
-import os
 import re
 import subprocess
 import sys
@@ -30,130 +30,15 @@ OUTPUT_DIR = BASE_DIR / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
 CONFIG_PATH = BASE_DIR / "config.json"
 
-# LinkedIn Jobs search URL template
-# f_WT=2 = Remote filter, sortBy=DD = Date posted (newest first)
-LINKEDIN_SEARCH = "https://www.linkedin.com/jobs/search/?keywords={keywords}&location={location}{remote_filter}&sortBy=DD"
-
-# JavaScript to extract job listings from the page
-EXTRACT_JS = """
-JSON.stringify(
-  Array.from(document.querySelectorAll('a[href*="/jobs/view/"]'))
-    .map(a => {
-      const li = a.closest('li, .job-search-card, [class*="job-card"]');
-      const title = li?.querySelector('h3, [class*="title"]')?.textContent?.trim() || a.textContent.trim();
-      const company = li?.querySelector('h4, [class*="company"]')?.textContent?.trim() || '';
-      const location = li?.querySelector('[class*="location"]')?.textContent?.trim() || '';
-      return {title, company, location, url: a.href.split('?')[0]};
-    })
-    .filter(j => j.title && j.title !== 'See who Arcadia has hired for this role')
-)
-"""
-
-# JavaScript to dismiss sign-in dialog
-DISMISS_JS = """
-(() => {
-  const btn = document.querySelector('button[aria-label="Dismiss"], button[type="button"]');
-  const dialogs = document.querySelectorAll('[role="dialog"]');
-  for (const d of dialogs) {
-    const dismissBtn = d.querySelector('button');
-    if (dismissBtn && (dismissBtn.textContent.includes('Dismiss') || dismissBtn.textContent.includes('×'))) {
-      dismissBtn.click();
-      return 'dismissed';
-    }
-  }
-  return 'no dialog';
-})()
-"""
-
-# JavaScript to click "See more jobs" button
-SEE_MORE_JS = """
-(() => {
-  const btn = document.querySelector('button[aria-label="See more jobs"]');
-  if (btn) { btn.click(); return 'clicked'; }
-  return 'no button';
-})()
-"""
-
-# JavaScript to get current job count
-COUNT_JS = "document.querySelectorAll('a[href*=\"/jobs/view/\"]').length"
-
-# JavaScript to scroll the job results list
-SCROLL_JS = """
-(() => {
-  const list = document.querySelector('.jobs-search-results-list, .scaffold-layout__list-container, [class*="jobs-search-results"]');
-  if (list) { list.scrollTop = list.scrollHeight; return 'scrolled list'; }
-  window.scrollTo(0, document.body.scrollHeight);
-  return 'scrolled window';
-})()
-"""
-
-
-def run_applescript(script):
-    """Run an AppleScript command and return output."""
-    result = subprocess.run(
-        ["osascript", "-e", script],
-        capture_output=True, text=True, timeout=30
-    )
-    return result.stdout.strip(), result.stderr.strip()
-
-
-def extract_jobs_from_browser():
-    """
-    Extract jobs from the currently loaded LinkedIn page in the Hermes browser.
-    Uses the browser_console tool via subprocess to call the Hermes API.
-    Since we can't call browser tools from Python directly, we use a different approach:
-    we'll write results to a temp file via JavaScript and read it.
-
-    Actually — this script is designed to be orchestrated BY the Hermes agent.
-    The agent will:
-    1. Navigate to LinkedIn search URL
-    2. Dismiss sign-in dialog
-    3. Scroll to load results
-    4. Run extract JS
-    5. Save results
-
-    This script handles the orchestration logic and output formatting.
-    The actual browser interaction is done by the agent calling browser tools.
-    """
-    pass
+# Guest API pagination endpoint — returns the same <li> job cards as the browser page
+GUEST_API = ("https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
+             "?keywords={keywords}&location={location}&sortBy=DD&start={start}")
 
 
 def load_config():
     """Load search config from config.json."""
     with open(CONFIG_PATH) as f:
         return json.load(f)
-
-
-def build_search_urls(config, keywords, boston=True, remote=True):
-    """Build LinkedIn search URLs from config locations."""
-    from urllib.parse import quote
-    kw = quote(keywords)
-    urls = []
-
-    for loc in config.get("search", {}).get("locations", []):
-        name = loc.get("name", "Unknown")
-        is_remote = loc.get("remote_only", False)
-        location_str = loc.get("linkedin_filter", name)
-
-        if is_remote and not remote:
-            continue
-        if not is_remote and not boston:
-            continue
-
-        loc_encoded = quote(location_str)
-        remote_filter = "&f_WT=2" if is_remote else ""
-        urls.append({
-            "mode": "remote" if is_remote else "boston",
-            "name": name,
-            "url": LINKEDIN_SEARCH.format(keywords=kw, location=loc_encoded, remote_filter=remote_filter)
-        })
-
-    return urls
-
-
-# Guest API pagination endpoint — returns the same <li> job cards as the browser page
-GUEST_API = ("https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
-             "?keywords={keywords}&location={location}&sortBy=DD&start={start}")
 
 LI_RE = re.compile(r"<li[^>]*>.*?</li>", re.S)
 TITLE_RE = re.compile(r'<h3[^>]*class="[^"]*base-search-card__title[^"]*"[^>]*>(.*?)</h3>', re.S)
@@ -314,32 +199,23 @@ def main():
 
     parser = argparse.ArgumentParser(description="LinkedIn Jobs Search Pipeline")
     parser.add_argument("--keywords", default=search_config["keywords"], help="Search keywords")
-    parser.add_argument("--boston", action="store_true", help="Search Greater Boston")
-    parser.add_argument("--remote", action="store_true", help="Search Remote USA")
-    parser.add_argument("--input", help="Read pre-extracted jobs from JSON file instead of browser")
     args = parser.parse_args()
-    
-    # If neither flag set, search both
-    search_boston = args.boston or (not args.boston and not args.remote)
-    search_remote = args.remote or (not args.boston and not args.remote)
-    
+
     date_str = datetime.now().strftime("%Y-%m-%d")
-    
-    if args.input:
-        # Read pre-extracted jobs from JSON file (from browser extraction)
-        with open(args.input) as f:
-            jobs = json.load(f)
-        print(f"Loaded {len(jobs)} jobs from {args.input}")
-    else:
-        # Fetch fresh listings from LinkedIn's guest API (no browser needed)
-        print("Fetching jobs from LinkedIn guest API...")
-        jobs = []
-        for loc in config.get("search", {}).get("locations", []):
-            location_str = loc.get("linkedin_filter", loc.get("name", "United States"))
-            print(f"  Searching: {location_str}")
-            jobs.extend(fetch_jobs_from_guest_api(args.keywords, location_str))
-        print(f"Fetched {len(jobs)} raw jobs")
-    
+
+    # Fetch fresh listings from LinkedIn's guest API (no browser needed),
+    # tagging each job with the search mode of the location it came from.
+    print("Fetching jobs from LinkedIn guest API...")
+    jobs = []
+    for loc in config.get("search", {}).get("locations", []):
+        location_str = loc.get("linkedin_filter", loc.get("name", "United States"))
+        search_mode = "remote" if loc.get("remote_only") else str(loc.get("name", "boston")).lower()
+        print(f"  Searching: {location_str} (mode: {search_mode})")
+        for job in fetch_jobs_from_guest_api(args.keywords, location_str):
+            job["search_mode"] = search_mode
+            jobs.append(job)
+    print(f"Fetched {len(jobs)} raw jobs")
+
     # Process extracted jobs
     jobs = dedupe_jobs(jobs)
     jobs = filter_by_keywords(jobs, args.keywords, config)

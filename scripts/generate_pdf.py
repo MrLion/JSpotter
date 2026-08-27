@@ -123,13 +123,7 @@ def clean(text):
 
 def generate_pdf(data, filepath):
     """Generate a single tailored resume PDF."""
-    
-    # Header content for repeating on every page
-    header_name_style = ParagraphStyle('HeaderName', parent=styles['Normal'],
-        fontName='Helvetica-Bold', fontSize=11, textColor=DARK, spaceAfter=1, leading=14)
-    header_contact_style = ParagraphStyle('HeaderContact', parent=styles['Normal'],
-        fontName='Helvetica', fontSize=8, textColor=GRAY, spaceAfter=2, leading=10)
-    
+
     def header_first(canvas, doc):
         """Full header on first page — name, contact info, rule."""
         canvas.saveState()
@@ -316,7 +310,7 @@ def generate_cover_letter_pdf(data, filepath):
         if any(phrase in para_lower for phrase in ['regards', 'sincerely', 'best regards', 'best,', 'thank you for', 'respectfully']):
             continue
         # Name/contact lines — strip (generator adds standard business closing)
-        if CANDIDATE_NAME.lower() in para_lower or ('mishchenko' in para_lower and not para.endswith('.')):
+        if CANDIDATE_NAME.lower() in para_lower:
             continue
         body_paragraphs.append(para)
     

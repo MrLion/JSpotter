@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented here.
 
+## [0.13.4] - 2026-08-27
+
+### Fixed
+- **`run_scoring.py` NameError in the description-fetch loop** — the loop referenced an undefined variable, so every description fetched by the thread pool was silently discarded and the retry loop re-fetched everything serially with a 2s delay per job. Descriptions now cache on first fetch and the progress counter reports correctly.
+- **`search_linkedin.py` jobs missing `search_mode`** — jobs fetched via the guest API are now tagged with the search mode of the config location they came from (`remote` for remote-only locations, otherwise the lowercased location name). Fixes empty Source column entries in the journal (171 rows and counting) and empty per-mode sections in the daily Markdown report.
+- **`email_triage.py` counts** — `counts` now reflects only NEW candidates; previously it counted all candidates including already-seen ones, so consumers keyed on counts could re-report old mail every run.
+- **`journal.py` empty status** — an empty `status` value in source JSON now writes "Not Applied" instead of an empty cell (which openpyxl round-trips to None, losing the status color coding).
+- **`run_batch_review.py --save`** — now accepts an optional batch-file path (`--save [path]`) instead of ignoring it, filters the flag out of resume paths, and creates `resume/tailored/` if missing.
+
+### Changed
+- **`journal.py` Source normalization** — Source values are lowercased on write, ending the `LinkedIn`/`Dice`/`dice` casing drift in the journal.
+- **`interview_prob.py` stricter missing-domain keywords** — broad single words (`security`, `compliance`, `consumer`, `brand`, `monitoring`, `device`, …) fired on generic JD text and wrongly penalized regulated-fintech/B2C postings −6 to −24 interview-probability points. Matching now uses the same multi-word standard as the config-driven match score.
+- **`match_score.py` docs corrected** — domain match is 40 pts (docstrings said 35); matches SETUP.md and the actual code.
+- **`generate_pdf.py`** — cover-letter name stripping now relies solely on the configured candidate name.
+- **Docs** — removed the Pillow requirement (no script uses it); corrected SETUP.md file-organization (no `resume/tailored/reviews/` dir exists; documented that `update_status()` moves PDFs/TXTs only and stray `*_review.json` files must be moved by hand).
+
+### Removed
+- **Dead browser-flow code in `search_linkedin.py`** — no-op browser-orchestration function, sign-in/scroll/extract JS constants, AppleScript helper, unused `build_search_urls`, and the `--boston`/`--remote`/`--input` flags the guest-API flow ignored.
+- **Phantom `--mode` option in `journal.py`** — documented in the docstring but never wired to argparse; the unused parameter dropped from `add_jobs()`.
+- **Unused imports and locals** across `ats_score.py`, `match_score.py`, `interview_prob.py`, `run_scoring.py`, `journal.py`, `search_adzuna.py`, `search_dice.py`, `generate_pdf.py`, and `run_review.py` (stale `descriptions_2026-07-14.json` standalone entry points untouched).
+
 ## [0.13.3] - 2026-08-27
 
 ### Added

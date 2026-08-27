@@ -18,7 +18,6 @@ import json
 import re
 import sys
 from pathlib import Path
-from datetime import datetime
 
 try:
     from openpyxl import load_workbook
@@ -31,18 +30,21 @@ JOURNAL = BASE_DIR / "journal.xlsx"
 PROFILE_PATH = BASE_DIR / "resume" / "MASTER_PROFILE.md"
 DESCS_PATH = BASE_DIR / "output" / "descriptions_2026-07-14.json"
 
-# Domains the candidate lacks (same as match_score.py)
+# Domains the candidate lacks — keyword matching is deliberately strict
+# (multi-word / specific terms only) to avoid false positives on generic JD
+# text. Single broad words like "compliance" or "security" fire on almost
+# every regulated or B2B posting and would wrongly penalize the score.
 MISSING_DOMAINS = ["Cybersecurity", "E-commerce/Consumer", "Infrastructure/DevOps", "Mobile/Hardware"]
 
 DOMAIN_KEYWORDS = {
-    "Cybersecurity": ["security", "cyber", "threat", "vulnerability", "encryption", "soc", "siem",
-                      "compliance", "fraud", "identity"],
-    "E-commerce/Consumer": ["ecommerce", "e-commerce", "marketplace", "retail", "b2c", "shopping",
-                             "consumer", "loyalty", "brand"],
-    "Infrastructure/DevOps": ["infrastructure", "devops", "kubernetes", "docker", "sre",
-                              "observability", "monitoring", "reliability", "scalability"],
-    "Mobile/Hardware": ["mobile", "ios", "android", "hardware", "embedded", "firmware",
-                        "device", "iot", "sensors"],
+    "Cybersecurity": ["cybersecurity", "threat detection", "vulnerability management",
+                      "encryption", "security operations", "siem", "zero trust"],
+    "E-commerce/Consumer": ["e-commerce", "ecommerce", "marketplace", "retail",
+                            "b2c", "shopping cart", "loyalty program"],
+    "Infrastructure/DevOps": ["devops", "kubernetes", "docker", "sre",
+                              "observability", "site reliability"],
+    "Mobile/Hardware": ["ios", "android", "embedded", "firmware",
+                        "mobile app", "iot", "wearable"],
 }
 
 
@@ -141,8 +143,6 @@ def calculate_interview_prob(match_score, ats_score, title, description, locatio
 
 
 def main():
-    with open(PROFILE_PATH) as f:
-        profile = f.read()
     with open(DESCS_PATH) as f:
         descriptions = json.load(f)
 

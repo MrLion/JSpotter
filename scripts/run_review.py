@@ -104,7 +104,6 @@ def main():
     
     for entry in data:
         company = entry.get('company', 'Unknown')
-        title = entry.get('title', 'Role')
         url = entry.get('url', '')
         job_desc = desc_cache.get(url, entry.get('description', ''))
         

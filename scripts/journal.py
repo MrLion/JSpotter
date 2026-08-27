@@ -10,7 +10,6 @@ Creates and maintains an .xlsx journal with sheets for:
 Usage:
   python3 journal.py --init                           # create empty journal
   python3 journal.py --add output/linkedin_extract.json  # add jobs from JSON
-  python3 journal.py --add output/linkedin_extract.json --mode append  # append to existing
   python3 journal.py --remove --url 4449017604        # remove by job URL substring
   python3 journal.py --remove --company "Apple" --title "Product Manager"  # remove by company/title
   python3 journal.py --remove-all-medlow              # remove all Medium/Low Not-Applied jobs
@@ -19,7 +18,6 @@ Usage:
 
 import argparse
 import json
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -28,7 +26,6 @@ try:
     from openpyxl import Workbook, load_workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
-    from openpyxl.worksheet.table import Table, TableStyleInfo
 except ImportError:
     print("Error: openpyxl not installed. Run: pip3 install openpyxl")
     sys.exit(1)
@@ -214,7 +211,7 @@ def _format_sheet(ws, columns):
             ws.cell(row=row_idx, column=col_idx).alignment = wrap
 
 
-def add_jobs(jobs_data, path=JOURNAL_PATH, mode="append"):
+def add_jobs(jobs_data, path=JOURNAL_PATH):
     """Add jobs to the Jobs sheet. Skips duplicates by App URL, then URL, then company+title+location."""
     if not path.exists():
         init_journal(path)
@@ -318,12 +315,15 @@ def add_jobs(jobs_data, path=JOURNAL_PATH, mode="append"):
                 row_data[key] = ""
             elif key == "priority":
                 row_data[key] = ""
-            elif key == "must_apply_24h":
-                row_data[key] = ""
             elif key == "status":
-                row_data[key] = job.get("status", "Not Applied")
+                status = job.get("status") or "Not Applied"
+                row_data[key] = status
             else:
-                row_data[key] = job.get(key, "")
+                # Normalize Source values to lowercase ('LinkedIn'/'Dice' drift)
+                val = job.get(key, "")
+                if key == "search_mode" and val:
+                    val = str(val).strip().lower()
+                row_data[key] = val
 
         # Write row
         for idx, (key, label, width) in enumerate(JOBS_COLUMNS, 1):
@@ -352,7 +352,6 @@ def add_jobs(jobs_data, path=JOURNAL_PATH, mode="append"):
             existing_company_title_loc.add(key)
 
     # Ensure auto-filters on all sheets
-    from openpyxl.utils import get_column_letter
     for sheet_name in ['Jobs', 'Applications', 'Resume Versions']:
         ws_filter = wb[sheet_name]
         max_col = ws_filter.max_column
