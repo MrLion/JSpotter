@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here.
 
+## [0.13.3] - 2026-08-27
+
+### Added
+- **`journal.py --remove` command** — remove jobs from the journal via the standard pipeline (no custom scripts). Supports `--company`/`--title` match, `--url` substring match (e.g. a LinkedIn job ID), and `--remove-all-medlow` to delete all Medium/Low priority, Not Applied jobs at once. Tested against a temp copy; the real journal is untouched.
+
 ## [0.13.2] - 2026-08-26
 
 ### Added

@@ -11,6 +11,9 @@ Usage:
   python3 journal.py --init                           # create empty journal
   python3 journal.py --add output/linkedin_extract.json  # add jobs from JSON
   python3 journal.py --add output/linkedin_extract.json --mode append  # append to existing
+  python3 journal.py --remove --url 4449017604        # remove by job URL substring
+  python3 journal.py --remove --company "Apple" --title "Product Manager"  # remove by company/title
+  python3 journal.py --remove-all-medlow              # remove all Medium/Low Not-Applied jobs
   python3 journal.py --status                          # show summary stats
 """
 
@@ -367,6 +370,58 @@ def add_jobs(jobs_data, path=JOURNAL_PATH, mode="append"):
     return added, skipped
 
 
+def remove_jobs(company=None, title=None, url=None, path=JOURNAL_PATH, all_medlow=False):
+    """Remove jobs from the journal by company/title/URL match, or all Medium/Low Not-Applied.
+
+    Args:
+        company: Company name to match (case-insensitive substring). Optional.
+        title: Optional title filter (case-insensitive substring). Optional.
+        url: Optional URL substring to match (e.g. a LinkedIn job ID). Optional.
+        path: Path to journal file.
+        all_medlow: If True, remove all rows with Priority in (Medium, Low) AND status 'Not Applied'.
+    Returns:
+        list of removed row labels (str).
+    """
+    wb = load_workbook(str(path))
+    ws = wb['Jobs']
+    hdr = [c.value for c in ws[1]]
+    def _col(n): return hdr.index(n) + 1 if n in hdr else None
+    comp_c, title_c = _col('Company'), _col('Job Title')
+    url_c = _col('Job URL')
+    prio_c, status_c = _col('Priority'), _col('Status')
+
+    to_delete = []
+    for row in ws.iter_rows(min_row=2, max_col=max(len(hdr), 20)):
+        r = row[0].row
+        if all_medlow:
+            p = str(row[prio_c - 1].value or '') if prio_c else ''
+            s = str(row[status_c - 1].value or '') if status_c else ''
+            if p in ('Medium', 'Low') and s == 'Not Applied':
+                to_delete.append(r)
+            continue
+        row_comp = str(row[comp_c - 1].value or '') if comp_c else ''
+        row_title = str(row[title_c - 1].value or '') if title_c else ''
+        row_url = str(row[url_c - 1].value or '') if url_c else ''
+        match = False
+        if company and company.lower() in row_comp.lower():
+            if title and title.lower() not in row_title.lower():
+                continue
+            match = True
+        elif url and url in row_url:
+            match = True
+        elif not company and not url and not all_medlow:
+            match = False
+        if match:
+            to_delete.append(r)
+
+    removed = []
+    for r in sorted(to_delete, reverse=True):
+        removed.append(f'{ws.cell(r, comp_c).value} — {ws.cell(r, title_c).value}' if comp_c and title_c else f'row {r}')
+        ws.delete_rows(r)
+    wb.save(str(path))
+    return removed
+
+
 def update_status(company, status, path=JOURNAL_PATH, title=None):
     """Update job status and set Last Updated timestamp. Archives PDFs for Rejected/Closed.
     
@@ -549,6 +604,11 @@ def main():
     parser = argparse.ArgumentParser(description="Job Journal — Excel tracking")
     parser.add_argument("--init", action="store_true", help="Create a new journal")
     parser.add_argument("--add", help="Add jobs from JSON file")
+    parser.add_argument("--remove", action="store_true", help="Remove jobs matching --company/--title/--url (or all Medium/Low Not-Applied with --remove-all-medlow)")
+    parser.add_argument("--company", help="Company name to match when removing")
+    parser.add_argument("--title", help="Title filter when removing")
+    parser.add_argument("--url", help="Job URL substring to match when removing")
+    parser.add_argument("--remove-all-medlow", action="store_true", help="Remove all Medium/Low priority, Not Applied jobs")
     parser.add_argument("--status", action="store_true", help="Show summary stats")
     parser.add_argument("--path", default=str(JOURNAL_PATH), help="Journal file path")
     args = parser.parse_args()
@@ -561,6 +621,15 @@ def main():
         with open(args.add) as f:
             jobs = json.load(f)
         add_jobs(jobs, path)
+    elif args.remove or args.remove_all_medlow:
+        removed = remove_jobs(company=args.company, title=args.title, url=args.url, path=path,
+                              all_medlow=args.remove_all_medlow)
+        if removed:
+            print(f"Removed {len(removed)} job(s):")
+            for r in removed:
+                print(f"  - {r}")
+        else:
+            print("No matching jobs found to remove.")
     elif args.status:
         show_status(path)
     else:
