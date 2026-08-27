@@ -140,6 +140,7 @@ Runs every morning to scan the **iCloud and Gmail** inboxes (via `himalaya`) for
 - Script: `scripts/email_triage.py` — reads both inboxes via `himalaya` (`-a icloud` / `-a gmail`), dedupes across runs with a state file (`output/email_triage_seen.json`), and outputs classified candidates as JSON
 - Delivers to Telegram + Bot Chat
 - The bot validates each flagged email against the job journal before reporting it, so rejections/interviews are only surfaced for applications that were actually made (avoids misattributing an email to a company never applied to). Rejections get flagged for status updates, interviews are surfaced as action required.
+- Both **rejections and application confirmations** are handed off to @job-hunter for journal updates: rejections → mark status `Rejected`; confirmations → mark status `Applied` (where not already recorded/Applied). @job-hunter cross-checks each against the journal before changing anything.
 - Type labels are plain words: `rejection`, `interview`, `confirmation`, `referral`. Interview detection matches the subject line (genuine interview emails carry "interview"/"onsite"/"screen" there) — body heuristics over-match on newsletter boilerplate.
 
 ## Troubleshooting
