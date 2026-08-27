@@ -155,6 +155,10 @@
   "resume_dir": "resume/tailored",
   "credentials": {
     "_comment": "Local only — never push to repo. gitignore protects config.json.",
+    "adzuna": {
+      "app_id": "your_adzuna_app_id",
+      "app_key": "your_adzuna_app_key"
+    },
     "dice": {
       "email": "your_email@example.com",
       "password": "***"

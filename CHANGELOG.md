@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here.
 
+## [0.13.2] - 2026-08-26
+
+### Added
+- **`scripts/search_adzuna.py` — Adzuna job search via REST API** — fetches product-management roles from the Adzuna API (no browser/login needed) and writes them to `output/adzuna_extract.json` in the same shape the journal/scoring expects. Reads keywords/location from `config.json` and credentials from `config.json → credentials.adzuna`. Paginates up to 500 results, dedupes by URL, and filters by `search.title_filter_terms`. Adzuna credentials stay in the gitignored `config.json` (template includes generic placeholders).
+- **`credentials.adzuna` in `config.json`** — `app_id`/`app_key` for the Adzuna API, kept local (never pushed).
+
 ## [0.13.1] - 2026-08-26
 
 ### Added

@@ -40,7 +40,8 @@ JSpotter/
 │   ├── run_batch_review.py     # Batch LLM review (multiple resumes in one call)
 │   ├── adapt_resume.py         # Same-company resume adapter
 │   ├── run_review.py           # Single resume LLM review
-│   └── email_triage.py         # Email inbox triage (rejections/interviews/confirmations/referrals)
+│   ├── email_triage.py         # Email inbox triage (rejections/interviews/confirmations/referrals)
+│   └── search_adzuna.py        # Adzuna job search (REST API, no browser/login)
 ├── templates/                  # All templates (generic, no personal data)
 │   ├── MASTER_PROFILE.template.md
 │   ├── config.template.json
@@ -95,6 +96,7 @@ Edit `config.json` to customize:
 | `candidate.client_names_in_profile` | Client display names | See config |
 | `candidate.client_employment_regex` | Regex for direct employment detection | See config |
 | `candidate.career_order` | Career history order for validation | See config |
+| `credentials.adzuna` | Adzuna API credentials (`app_id`, `app_key`) — get a free key from the Adzuna developer portal | See config |
 | `resume_tailoring.bullet_max_words` | Max words per bullet | `35` |
 | `resume_tailoring.quality_gate_threshold` | Technical gate minimum score | `75` |
 | `resume_tailoring.human_review_threshold` | LLM review minimum score | `70` |
@@ -151,6 +153,9 @@ python3 scripts/search_linkedin.py
 # Dice search (requires login, extracts company ATS URLs)
 python3 scripts/search_dice.py
 
+# Adzuna search (REST API, no browser/login — reads keywords + credentials from config.json)
+python3 scripts/search_adzuna.py
+
 # Add results to journal (dedup by App URL, then source URL, then company+title+location)
 python3 scripts/journal.py --add output/linkedin_extract.json
 
@@ -194,6 +199,7 @@ See **[docs/CRON.md](CRON.md)** for the full cron setup guide, including:
 |--------|---------|-------------------|-------------------|
 | `search_linkedin.py` | LinkedIn job search via guest API (no browser/login) | ✅ keywords, locations | — |
 | `search_dice.py` | Dice job search (browser, login required) | ✅ keywords, locations | — |
+| `search_adzuna.py` | Adzuna job search via REST API (no browser/login) | ✅ keywords, locations, credentials | — |
 | `journal.py` | Journal management (init, add, status, validation, update_status) | ✅ journal path | — |
 | `run_scoring.py` | Fetch descriptions + calculate all scores | ✅ priority thresholds | — |
 | `match_score.py` | Match score algorithm (config-driven domains) | ✅ domains, location, thresholds | — |
