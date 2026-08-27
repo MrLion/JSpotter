@@ -129,6 +129,9 @@ APPLICATION_CONFIRM_PATTERNS = [
     r"application has been submitted",
     r"keep track of its status",
     r"you have applied",
+    r"application was sent",
+    r"your application was sent",
+    r"application sent to",
 ]
 
 # Referrals / recommendations.
