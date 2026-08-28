@@ -15,7 +15,7 @@ Chrome requires per-connection "Allow remote debugging?" approval which blocks u
 
 ## Daily Job Scan
 
-Runs the full search → add → score pipeline every morning and delivers a summary to Telegram.
+Runs the full search → add → score → extract pipeline every morning and delivers a summary to Telegram.
 
 ### Setup
 
@@ -34,6 +34,9 @@ PYTHONPATH="" "$PYBIN" scripts/journal.py --add output/linkedin_extract.json 2>&
 
 echo "=== Step 3: Score New Jobs ==="
 PYTHONPATH="" "$PYBIN" scripts/run_scoring.py 2>&1
+
+echo "=== Step 4: Extract Requirements ==="
+PYTHONPATH="" "$PYBIN" scripts/extract_requirements.py --backfill 40 2>&1
 
 echo "=== DONE ==="
 ```
@@ -97,6 +100,28 @@ The journal automatically validates rows on every `add_jobs()` call via `validat
 - Priority must be in {High, Medium, Low}
 - Date Applied must not contain URLs
 - App URL must not contain status words
+
+### Hard-Constraint Gates (deal-breakers)
+
+Before a new job is scored, `run_scoring.py` runs the hard-constraint gates from `config.json → hard_constraints`. A job failing any gate is **never scored or prioritized** — it gets `Recommendation: SKIP: <reason>`, match=0, and is reported in the 🚫 Gated section of the Telegram message instead of the high-priority list.
+
+Gates (each disabled when its config key is unset/null):
+- **Location** — `allowed_locations` (e.g. `["Boston", "Remote"]`); a job naming a specific other city/state with no remote signal is skipped.
+- **On-site tolerance** — `onsite_tolerance`; fires when the JD demands fully on-site work outside allowed locations (including an on-site city named inside the JD text).
+- **Compensation floor** — `comp_floor`; from Adzuna non-predicted salaries or JD text. Fail-open when salary is undisclosed.
+- **Max years** — `max_years_required`; skips roles requiring more experience than the limit.
+- **Text blockers** — `text_blockers` (e.g. "security clearance", "must be a us citizen").
+
+### Recommendation Column
+
+The Jobs sheet has a `Recommendation` column (appended last, col 19) filled by `run_scoring.py`:
+- `APPLY` / `MAYBE` / `LOW FIT` from the score bands (High/Medium/Low priority thresholds)
+- `SKIP: <reason>` when a hard-constraint gate fires
+- `MAYBE: no JD available to verify constraints` when the JD couldn't be fetched
+
+### Requirement Extraction (Step 4)
+
+`extract_requirements.py` classifies every requirement in a JD as `required` / `preferred` / `bonus` (with category and confidence), stored in `output/requirements_cache.json`. Primary engine is ollama-cloud (`glm-5.3-flash`); it falls back to a pure-Python heuristic when the LLM is unavailable. Every extracted requirement is quote-verified against the source JD (hallucination guard). The daily run processes up to 40 uncached JDs; the cache is keyed by URL so re-runs are no-ops. Config via `EMR_*` env vars (see the script docstring).
 
 ### Status Updates
 

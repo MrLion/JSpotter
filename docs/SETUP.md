@@ -104,8 +104,17 @@ Edit `config.json` to customize:
 | `resume_tailoring.human_review_threshold` | LLM review minimum score | `70` |
 | `journal.path` | Path to journal file | `"journal.xlsx"` |
 | `resume_dir` | Where tailored resumes go | `"resume/tailored"` |
+| `hard_constraints.comp_floor` | Minimum acceptable annual salary (USD); fail-open when undisclosed | `140000` |
+| `hard_constraints.allowed_locations` | Acceptable locations; jobs naming other cities with no remote signal are skipped | `["Boston", "Remote"]` |
+| `hard_constraints.location_tokens` | Per-location token lists for the location gate | See config |
+| `hard_constraints.remote_tokens` | Phrases that signal a remote role | See config |
+| `hard_constraints.onsite_tolerance` | `hybrid` / `onsite` / `remote`; fires on fully on-site demands outside allowed locations | `"hybrid"` |
+| `hard_constraints.onsite_phrases` | JD phrases that signal fully on-site work | See config |
+| `hard_constraints.salary_sanity` | Annual salary bounds (`min_annual`/`max_annual`) for parsing | `{"min_annual": 50000, "max_annual": 2000000}` |
+| `hard_constraints.max_years_required` | Skip roles requiring more experience than this | `20` |
+| `hard_constraints.text_blockers` | Case-insensitive instant-skip substrings | `["security clearance", ...]` |
 
-All settings are required — scripts raise ValueError if config keys are missing. Start from the template and fill in all values.
+All settings are required — scripts raise ValueError if config keys are missing. Start from the template and fill in all values. Hard-constraint gates are disabled when their key is unset/null.
 
 ### 3. Configure resume design
 
