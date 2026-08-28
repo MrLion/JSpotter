@@ -54,7 +54,6 @@ JOBS_COLUMNS = [
     ("app_url", "App URL", 45),
     ("date_applied", "Date Applied", 12),
     ("last_updated", "Last Updated", 12),
-    ("recommendation", "Recommendation", 40),
 ]
 
 # 1-based column index per Jobs-sheet key — the single source of truth for
@@ -397,15 +396,6 @@ def add_jobs(jobs_data, path=JOURNAL_PATH):
         ws_filter = wb[sheet_name]
         max_col = ws_filter.max_column
         ws_filter.auto_filter.ref = f'A1:{get_column_letter(max_col)}1'
-    # Recommendation header — ensure on existing journals too (derived column)
-    rec_col = _find_col_by_key(JOBS_COLUMNS, "recommendation")
-    if rec_col and ws.cell(row=1, column=rec_col).value in (None, ''):
-        ws.cell(row=1, column=rec_col, value='Recommendation')
-        ws.cell(row=1, column=rec_col).font = HEADER_FONT
-        ws.cell(row=1, column=rec_col).fill = HEADER_FILL
-        ws.cell(row=1, column=rec_col).alignment = HEADER_ALIGN
-        ws.cell(row=1, column=rec_col).border = THIN_BORDER
-        ws.column_dimensions[get_column_letter(rec_col)].width = 40
     
     # Validate all rows before saving
     errors = validate_journal_rows(ws)

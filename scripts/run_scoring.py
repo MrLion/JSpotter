@@ -38,10 +38,6 @@ from match_score import calculate_match_score
 from hard_constraints import check_hard_constraints
 from journal import JOBS_COL_INDEX
 
-# Recommendation column — derived from the journal column definitions so it
-# never drifts from the sheet layout (appended last; never insert mid-sheet).
-REC_COL = JOBS_COL_INDEX["recommendation"]
-
 PRIORITY_COLORS = {
     'High': PatternFill(start_color='FFD7D7', end_color='FFD7D7', fill_type='solid'),
     'Medium': PatternFill(start_color='FFF2CC', end_color='FFF2CC', fill_type='solid'),
@@ -216,7 +212,6 @@ def main():
             ws.cell(row=row_idx, column=COL["match_score"], value=0)
             ws.cell(row=row_idx, column=COL["ats_score"], value=0)
             ws.cell(row=row_idx, column=COL["fit_notes"], value=f"SKIPPED — {reason}")
-            ws.cell(row=row_idx, column=REC_COL, value=f"SKIP: {reason}")
             ws.cell(row=row_idx, column=COL["priority"], value="Low")
             ws.cell(row=row_idx, column=COL["priority"]).fill = PRIORITY_COLORS["Low"]
             if not ws.cell(row=row_idx, column=COL["status"]).value:
@@ -231,7 +226,6 @@ def main():
             ws.cell(row=row_idx, column=COL["priority"], value="Low")
             ws.cell(row=row_idx, column=COL["priority"]).fill = PRIORITY_COLORS["Low"]
             ws.cell(row=row_idx, column=COL["fit_notes"], value="No description available")
-            ws.cell(row=row_idx, column=REC_COL, value="MAYBE: no JD available to verify constraints")
             continue
 
         # Calculate all scores
@@ -277,14 +271,6 @@ def main():
         if not ws.cell(row=row_idx, column=COL["status"]).value:
             ws.cell(row=row_idx, column=COL["status"], value="Not Applied")
 
-        # Recommendation for scored rows — band + threshold context
-        if match_score >= _high_thresh:
-            ws.cell(row=row_idx, column=REC_COL, value="APPLY")
-        elif match_score >= _med_thresh:
-            ws.cell(row=row_idx, column=REC_COL, value="MAYBE")
-        else:
-            ws.cell(row=row_idx, column=REC_COL, value="LOW FIT")
-
         scored += 1
         print(f"  {job['company'][:20]:<20} match={match_score:>3} ats={ats_score:>3}  {priority:<7} {job['title'][:30]}")
 
@@ -294,9 +280,6 @@ def main():
         ws_filter = wb[sheet_name]
         max_col = ws_filter.max_column
         ws_filter.auto_filter.ref = f'A1:{get_column_letter(max_col)}1'
-    # Recommendation header — add if missing (idempotent)
-    if ws.cell(row=1, column=REC_COL).value in (None, ''):
-        ws.cell(row=1, column=REC_COL, value='Recommendation')
     
     # Color-code company cells by status
     from openpyxl.styles import PatternFill, Font

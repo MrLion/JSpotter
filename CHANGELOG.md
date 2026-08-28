@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here.
 
+## [0.14.2] - 2026-08-27
+
+### Removed
+- **`Recommendation` column** — it was a redundant relabel of the Priority column (`APPLY`/`MAYBE`/`LOW FIT` mapped 1:1 to High/Medium/Low). The column is removed from `JOBS_COLUMNS` and `run_scoring.py` no longer writes it. The hard-constraint gates still surface SKIPs via `SKIPPED — <reason>` in Fit Notes + Priority=Low + the 🚫 Gated Telegram section, so no signal is lost. The live journal never had the column (it was created lazily), so no data migration was needed.
+
 ## [0.14.1] - 2026-08-27
 
 ### Removed

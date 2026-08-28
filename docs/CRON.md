@@ -103,7 +103,7 @@ The journal automatically validates rows on every `add_jobs()` call via `validat
 
 ### Hard-Constraint Gates (deal-breakers)
 
-Before a new job is scored, `run_scoring.py` runs the hard-constraint gates from `config.json → hard_constraints`. A job failing any gate is **never scored or prioritized** — it gets `Recommendation: SKIP: <reason>`, match=0, and is reported in the 🚫 Gated section of the Telegram message instead of the high-priority list.
+Before a new job is scored, `run_scoring.py` runs the hard-constraint gates from `config.json → hard_constraints`. A job failing any gate is **never scored or prioritized** — it gets match=0, Priority=Low, `SKIPPED — <reason>` in Fit Notes, and is reported in the 🚫 Gated section of the Telegram message instead of the high-priority list.
 
 Gates (each disabled when its config key is unset/null):
 - **Location** — `allowed_locations` (e.g. `["Boston", "Remote"]`); a job naming a specific other city/state with no remote signal is skipped.
@@ -111,13 +111,6 @@ Gates (each disabled when its config key is unset/null):
 - **Compensation floor** — `comp_floor`; from Adzuna non-predicted salaries or JD text. Fail-open when salary is undisclosed.
 - **Max years** — `max_years_required`; skips roles requiring more experience than the limit.
 - **Text blockers** — `text_blockers` (e.g. "security clearance", "must be a us citizen").
-
-### Recommendation Column
-
-The Jobs sheet has a `Recommendation` column (appended last, col 19) filled by `run_scoring.py`:
-- `APPLY` / `MAYBE` / `LOW FIT` from the score bands (High/Medium/Low priority thresholds)
-- `SKIP: <reason>` when a hard-constraint gate fires
-- `MAYBE: no JD available to verify constraints` when the JD couldn't be fetched
 
 ### Requirement Extraction (Step 4)
 
