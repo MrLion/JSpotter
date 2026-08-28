@@ -144,7 +144,16 @@
     "_comment": "Deal-breaker gates checked BEFORE scoring. Set your own values; leave a key out or null to disable that gate. Jobs failing a gate get Recommendation=SKIP with reason.",
     "comp_floor": 0,
     "allowed_locations": ["Your City", "Remote"],
+    "location_tokens": {
+      "Your City": ["your city", ", yourstate"],
+      "Remote": ["remote", "work from home", "wfh", "distributed", "anywhere in the us", "us remote", "remote-first"]
+    },
+    "remote_tokens": ["remote", "work from home", "wfh", "distributed", "anywhere in the us", "us remote", "remote-first"],
     "onsite_tolerance": "hybrid",
+    "onsite_phrases": ["on-site 5 days", "onsite 5 days", "in-office 5 days", "in office 5 days", "100% onsite", "100% on-site", "fully onsite", "fully on-site", "five days a week on-site", "5 days/week on-site", "on-site, 5"],
+    "generic_onsite_words": ["downtown", "headquarters", "office", "campus", "hq", "the", "our", "a", "an", "one", "person", "hybrid"],
+    "specific_location_states": ["ma", "ny", "ca", "tx", "fl", "il", "pa", "oh", "ga", "nc", "va", "wa", "az", "co", "ut", "ct", "ri", "massachusetts", "new york", "california", "texas", "florida", "illinois", "pennsylvania", "ohio", "georgia", "north carolina", "virginia", "washington", "arizona", "colorado", "utah", "connecticut", "rhode island"],
+    "salary_sanity": {"min_annual": 50000, "max_annual": 2000000},
     "max_years_required": 20,
     "text_blockers": ["security clearance", "must be a us citizen"]
   },

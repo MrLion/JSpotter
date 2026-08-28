@@ -56,6 +56,9 @@ PROFILE_PATH = BASE_DIR / "resume" / "MASTER_PROFILE.md"
 DESCS_PATH = BASE_DIR / "output" / "descriptions_2026-07-14.json"
 CONFIG_PATH = BASE_DIR / "config.json"
 
+# Column indexes from the shared journal definition (single source of truth)
+from journal import JOBS_COL_INDEX
+
 # ─── Load domain definitions from config.json ───
 
 def _load_domains():
@@ -302,11 +305,11 @@ def main():
     wb = load_workbook(str(JOURNAL))
     ws = wb["Jobs"]
 
-    MATCH_COL = 7  # Match Score column
-    URL_COL = 6
-    TITLE_COL = 3
-    COMPANY_COL = 2
-    LOCATION_COL = 4
+    MATCH_COL = JOBS_COL_INDEX["match_score"]
+    URL_COL = JOBS_COL_INDEX["url"]
+    TITLE_COL = JOBS_COL_INDEX["title"]
+    COMPANY_COL = JOBS_COL_INDEX["company"]
+    LOCATION_COL = JOBS_COL_INDEX["location"]
 
     results = []
     updated = 0

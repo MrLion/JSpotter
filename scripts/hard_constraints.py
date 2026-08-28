@@ -7,8 +7,17 @@ Recommendation = "SKIP: <reason>" in the journal instead. This prevents a
 high skills match from papering over a fundamental constraint (location,
 work authorization, compensation floor, excessive experience requirement).
 
-All thresholds come from config.json → hard_constraints. A missing key or
+ALL thresholds come from config.json → hard_constraints. A missing key or
 null value disables that gate, so old configs keep working unchanged.
+Configurable keys:
+  comp_floor, allowed_locations, location_tokens, remote_tokens,
+  onsite_tolerance, onsite_phrases, max_years_required, text_blockers,
+  salary_sanity.{min_annual,max_annual}, specific_location_states,
+  generic_onsite_words
+
+The only literals in this module are fallback defaults (used when a config
+key is absent) and structural parsing patterns (salary/state formats) — every
+behavioral threshold is overridable via config.
 
 Gates:
   comp_floor          — minimum acceptable annual salary (USD). Salary is
@@ -16,18 +25,15 @@ Gates:
                         from Adzuna non-predicted salaries) or parsed from
                         the JD text ("$150,000–$180,000", "$120k"). Only
                         fires when a credible annual figure is found.
-  allowed_locations   — list of acceptable location tokens (e.g. ["Boston",
-                        "Remote"]). A job whose location names a specific
-                        OTHER city/state and shows no remote signal anywhere
-                        in title/location/description fails the gate.
+  allowed_locations   — acceptable locations. A job whose location names a
+                        specific OTHER city/state and shows no remote signal
+                        anywhere in title/location/description fails the gate.
   onsite_tolerance    — "hybrid" (default) | "onsite" | "remote". Fires when
                         the JD demands fully on-site work AND the location is
                         not explicitly allowed AND there is no remote signal.
   max_years_required  — skip if the JD's stated years-of-experience
-                        requirement exceeds this (candidate would be
-                        overqualified / mis-leveled).
-  text_blockers       — case-insensitive substrings that are instant skips
-                        (e.g. "security clearance", "must be a us citizen").
+                        requirement exceeds this.
+  text_blockers       — case-insensitive substrings that are instant skips.
 
 Usage (from run_scoring.py):
     from hard_constraints import check_hard_constraints
@@ -36,65 +42,96 @@ Usage (from run_scoring.py):
 
 import re
 
-# Annual-salary figure patterns for JD text scanning
+# Annual-salary figure patterns for JD text scanning (structural format, not a
+# tunable threshold — kept in code).
 _SALARY_PATTERNS = [
     # $150,000 | $150,000–$180,000 | $150k - $180k
     r'\$\s?(\d{2,3}(?:,\d{3})?)\s*(?:[-–—]\s*\$?\s?(\d{2,3}(?:,\d{3})?))?',
     r'\$\s?(\d{2,3})\s?k\b\s*(?:[-–—]\s*\$?\s?(\d{2,3})\s?k)?',
 ]
-# Below this a "$N" figure is not an annual salary (hourly rate, bonus, etc.)
-_MIN_ANNUAL = 50000
-# Location patterns that mean "specific place, probably not remote"
-_STATE_RE = re.compile(r',\s*(?:[a-z]{2}\b|massachusetts|new york|california|texas|florida|'
-                       r'illinois|pennsylvania|ohio|georgia|north carolina|virginia|'
-                       r'washington|arizona|colorado|utah|connecticut|rhode island)\b', re.I)
-_REMOTE_TOKENS = ("remote", "work from home", "wfh", "distributed", "anywhere in the us",
-                  "us remote", "remote-first")
-_BOSTON_TOKENS = ("boston", ", ma", "massachusetts", "cambridge", "somerville",
-                  "cambridge, ma", "quincy", "waltham", "lexington", "burlington, ma")
+
+# Fallback defaults — overridden by config.json → hard_constraints
+_DEFAULT_SALARY_SANITY = {"min_annual": 50000, "max_annual": 2000000}
+_DEFAULT_REMOTE_TOKENS = ("remote", "work from home", "wfh", "distributed",
+                          "anywhere in the us", "us remote", "remote-first")
+_DEFAULT_ONSITE_PHRASES = (
+    "on-site 5 days", "onsite 5 days", "in-office 5 days", "in office 5 days",
+    "100% onsite", "100% on-site", "fully onsite", "fully on-site",
+    "five days a week on-site", "5 days/week on-site", "on-site, 5",
+)
+_DEFAULT_GENERIC_ONSITE_WORDS = {"downtown", "headquarters", "office", "campus", "hq",
+                                 "the", "our", "a", "an", "one", "person", "hybrid"}
+_DEFAULT_SPECIFIC_STATES = [
+    "ma", "ny", "ca", "tx", "fl", "il", "pa", "oh", "ga", "nc", "va", "wa",
+    "az", "co", "ut", "ct", "ri",
+    "massachusetts", "new york", "california", "texas", "florida", "illinois",
+    "pennsylvania", "ohio", "georgia", "north carolina", "virginia", "washington",
+    "arizona", "colorado", "utah", "connecticut", "rhode island",
+]
+_DEFAULT_NATIONWIDE_RE = r'\bunited states\b|\busa\b|\b(us|u\.s\.)\b'
 
 
 def _parse_number(s):
     """'150,000' -> 150000 ; '150k' -> 150000 (caller appends k)."""
-    return int(s.replace(",", ""))
+    return int(str(s).replace(",", ""))
 
 
-def _annual_figures_in(text):
-    """Extract credible annual salary figures (USD) from text."""
-    figures = []
-    for pat in _SALARY_PATTERNS:
-        for m in re.finditer(pat, text, re.I):
-            lo = _parse_salary_token(m.group(1), 'k' in pat)
-            hi = _parse_salary_token(m.group(2), 'k' in pat) if m.group(2) else None
-            for v in (lo, hi):
-                if v is not None:
-                    figures.append(v)
-    return figures
-
-
-def _parse_salary_token(s, is_k):
+def _parse_salary_token(s, is_k, sanity):
     try:
         v = _parse_number(s)
     except (ValueError, AttributeError):
         return None
     if is_k:
         v *= 1000
-    # Sanity: annual salaries live in 50k–2M; drop hourly rates & typos
-    if v < _MIN_ANNUAL or v > 2_000_000:
+    if v < sanity["min_annual"] or v > sanity["max_annual"]:
         return None
     return v
 
 
-def _has_remote_signal(text_lower):
-    return any(t in text_lower for t in _REMOTE_TOKENS)
+def _annual_figures_in(text, sanity):
+    """Extract credible annual salary figures (USD) from text."""
+    figures = []
+    for pat in _SALARY_PATTERNS:
+        for m in re.finditer(pat, text, re.I):
+            lo = _parse_salary_token(m.group(1), 'k' in pat, sanity)
+            hi = _parse_salary_token(m.group(2), 'k' in pat, sanity) if m.group(2) else None
+            for v in (lo, hi):
+                if v is not None:
+                    figures.append(v)
+    return figures
 
 
-# Words that appear after "in" near on-site phrases but are NOT cities
-_GENERIC_ONSITE_WORDS = {"downtown", "headquarters", "office", "campus", "hq",
-                         "the", "our", "a", "an", "one", "person", "hybrid"}
+def _has_remote_signal(text_lower, remote_tokens):
+    return any(t in text_lower for t in remote_tokens)
 
 
-def _onsite_city(desc_lower):
+def _build_location_tokens(allowed_locations, location_tokens):
+    """Flatten allowed locations into a token list. Uses the location_tokens
+    map when present, else derives tokens from the location names themselves."""
+    tokens = []
+    for loc in allowed_locations or []:
+        loc_lower = str(loc).lower()
+        if location_tokens and loc in location_tokens:
+            tokens.extend(location_tokens[loc])
+        else:
+            tokens.append(loc_lower)
+    return tokens
+
+
+def _build_specific_re(states):
+    states = states or _DEFAULT_SPECIFIC_STATES
+    return re.compile(r',\s*(?:' + '|'.join(re.escape(s) for s in states) + r')\b', re.I)
+
+
+def _location_allowed(location_lower, location_tokens, nationwide_re):
+    if any(t in location_lower for t in location_tokens):
+        return True
+    if re.search(nationwide_re, location_lower):
+        return True
+    return False
+
+
+def _onsite_city(desc_lower, generic_words):
     """Extract a city name from an on-site demand phrase, or None.
     'fully on-site 5 days a week in our nyc headquarters' -> 'nyc'
     'on-site 5 days a week in our downtown office'        -> None (no city)
@@ -105,19 +142,8 @@ def _onsite_city(desc_lower):
         desc_lower)
     if not m:
         return None
-    words = [w for w in m.group(1).split() if w not in _GENERIC_ONSITE_WORDS]
+    words = [w for w in m.group(1).split() if w not in generic_words]
     return " ".join(words) if words else None
-
-
-def _location_allowed(location_lower):
-    if any(t in location_lower for t in _BOSTON_TOKENS):
-        return True
-    if _has_remote_signal(location_lower):
-        return True
-    # Nationwide / generic locations get the benefit of the doubt
-    if re.search(r'\bunited states\b|\busa\b|\b(us|u\.s\.)\b', location_lower):
-        return True
-    return False
 
 
 def check_hard_constraints(job, description, salary_text="", config=None):
@@ -140,39 +166,43 @@ def check_hard_constraints(job, description, salary_text="", config=None):
     location_lower = location.lower()
     desc = str(description or "")
     desc_lower = desc.lower()
-    title_lower = str(job.get("title", "") or "").lower()
+
+    # Config-driven token sets (fall back to defaults when absent)
+    allowed = hc.get("allowed_locations")
+    location_tokens = _build_location_tokens(allowed, hc.get("location_tokens"))
+    remote_tokens = hc.get("remote_tokens") or _DEFAULT_REMOTE_TOKENS
+    onsite_phrases = hc.get("onsite_phrases") or _DEFAULT_ONSITE_PHRASES
+    generic_words = set(hc.get("generic_onsite_words") or _DEFAULT_GENERIC_ONSITE_WORDS)
+    sanity = {**_DEFAULT_SALARY_SANITY, **(hc.get("salary_sanity") or {})}
+    specific_re = _build_specific_re(hc.get("specific_location_states"))
+    nationwide_re = re.compile(_DEFAULT_NATIONWIDE_RE, re.I)
 
     # ── Location gate ──
-    allowed = hc.get("allowed_locations")
     if allowed and location.strip():
-        if not _location_allowed(location_lower) and not _has_remote_signal(desc_lower):
-            if _STATE_RE.search(location_lower):
+        if not _location_allowed(location_lower, location_tokens, nationwide_re) \
+                and not _has_remote_signal(desc_lower, remote_tokens):
+            if specific_re.search(location_lower):
                 reasons.append(f"Location: {location} (not in {', '.join(allowed)}, no remote signal)")
 
     # ── Onsite tolerance gate ──
     tolerance = (hc.get("onsite_tolerance") or "").lower()
     if tolerance in ("hybrid", "remote") and desc_lower:
-        onsite_phrases = (
-            "on-site 5 days", "onsite 5 days", "in-office 5 days", "in office 5 days",
-            "100% onsite", "100% on-site", "fully onsite", "fully on-site",
-            "five days a week on-site", "5 days/week on-site", "on-site, 5",
-        )
         demands_onsite = any(p in desc_lower for p in onsite_phrases) or \
             (re.search(r'\bon-?site\b', desc_lower) and re.search(r'\b5\s*days\b|\bfive days\b', desc_lower))
-        if demands_onsite and not _has_remote_signal(desc_lower):
-            onsite_city = _onsite_city(desc_lower)
+        if demands_onsite and not _has_remote_signal(desc_lower, remote_tokens):
+            onsite_city = _onsite_city(desc_lower, generic_words)
             if onsite_city:
                 # City named in the JD itself governs, even if the posting
                 # location is generic ("United States").
-                if not _location_allowed(onsite_city):
+                if not _location_allowed(onsite_city, location_tokens, nationwide_re):
                     reasons.append(f"Requires fully on-site work in {onsite_city}")
-            elif not _location_allowed(location_lower):
+            elif not _location_allowed(location_lower, location_tokens, nationwide_re):
                 reasons.append("Requires fully on-site work outside allowed locations")
 
     # ── Compensation floor gate ──
     floor = hc.get("comp_floor")
     if floor:
-        figures = _annual_figures_in(salary_text) + _annual_figures_in(desc)
+        figures = _annual_figures_in(salary_text, sanity) + _annual_figures_in(desc, sanity)
         if figures:
             best = max(figures)
             if best < int(floor):

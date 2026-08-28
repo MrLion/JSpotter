@@ -28,6 +28,9 @@ JOURNAL = BASE_DIR / "journal.xlsx"
 PROFILE_PATH = BASE_DIR / "resume" / "MASTER_PROFILE.md"
 DESCS_PATH = BASE_DIR / "output" / "descriptions_2026-07-14.json"
 
+# Column indexes from the shared journal definition (single source of truth)
+from journal import JOBS_COL_INDEX
+
 # ATS keyword categories — these are the terms ATS systems scan for
 # Each category is weighted equally (by keyword count within it)
 ATS_CATEGORIES = {
@@ -117,9 +120,9 @@ def main():
     wb = load_workbook(str(JOURNAL))
     ws = wb["Jobs"]
 
-    # Find URL column (column 6) and ATS score column (column 8)
-    URL_COL = 6
-    ATS_COL = 8
+    # Find URL and ATS score columns from the shared journal definition
+    URL_COL = JOBS_COL_INDEX["url"]
+    ATS_COL = JOBS_COL_INDEX["ats_score"]
 
     updated = 0
     scores = []
@@ -138,8 +141,8 @@ def main():
         ws.cell(row=row_idx, column=ATS_COL, value=score)
         updated += 1
 
-        company = ws.cell(row=row_idx, column=2).value or ""
-        title = ws.cell(row=row_idx, column=3).value or ""
+        company = ws.cell(row=row_idx, column=JOBS_COL_INDEX["company"]).value or ""
+        title = ws.cell(row=row_idx, column=JOBS_COL_INDEX["title"]).value or ""
         scores.append((score, company, title, details))
 
     wb.save(str(JOURNAL))

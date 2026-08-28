@@ -34,8 +34,15 @@ Configuration (env, all optional):
                  e.g. http://localhost:11434/v1 for local Ollama)
   EMR_MODEL      model tag (default glm-5.3-flash)
   EMR_TIMEOUT    per-JD LLM timeout seconds (default 120)
-  EMR_MAX_TOKENS max completion tokens (default 2000)
-  EMR_PACE_S     seconds between LLM calls (default 2; rate-limit pacing)
+  EMR_MAX_TOKENS max completion tokens (default 4000)
+  EMR_WORKERS    parallel LLM workers (default 5)
+  EMR_MAX_JD_CHARS  JD text sent to the LLM (default 12000)
+  EMR_MAX_REQS      max requirements per JD (default 15)
+  EMR_MIN_QUOTE     min quote length to verify (default 10)
+  EMR_MIN_SENT/EMR_MAX_SENT  heuristic sentence bounds (default 15/400)
+  EMR_LLM_CONF/EMR_HEUR_CONF default confidence (default 0.8/0.55)
+  EMR_PREFERRED_CUES/EMR_REQUIRED_CUES/EMR_EDU_CUES/EMR_CERT_CUES
+                             heuristic cue vocabularies (comma-separated)
   OLLAMA_API_KEY bearer token; falls back to ~/.hermes/.env
 
 Standard library only.
@@ -61,8 +68,15 @@ ENDPOINT = os.environ.get("EMR_ENDPOINT", "https://ollama.com/v1")
 MODEL = os.environ.get("EMR_MODEL", "glm-5.3-flash")
 TIMEOUT_S = int(os.environ.get("EMR_TIMEOUT", "120"))
 MAX_TOKENS = int(os.environ.get("EMR_MAX_TOKENS", "4000"))
-PACE_S = float(os.environ.get("EMR_PACE_S", "0"))
 MAX_WORKERS = int(os.environ.get("EMR_WORKERS", "5"))
+# Behavioral thresholds (env-overridable, defaults below)
+MAX_JD_CHARS = int(os.environ.get("EMR_MAX_JD_CHARS", "12000"))   # JD text sent to the LLM
+MAX_REQS = int(os.environ.get("EMR_MAX_REQS", "15"))              # max requirements per JD
+MIN_QUOTE = int(os.environ.get("EMR_MIN_QUOTE", "10"))            # min quote length to verify
+MIN_SENT = int(os.environ.get("EMR_MIN_SENT", "15"))              # heuristic sentence min chars
+MAX_SENT = int(os.environ.get("EMR_MAX_SENT", "400"))             # heuristic sentence max chars
+LLM_CONF = float(os.environ.get("EMR_LLM_CONF", "0.8"))           # default LLM confidence
+HEUR_CONF = float(os.environ.get("EMR_HEUR_CONF", "0.55"))        # heuristic confidence
 
 # Built by concatenation so source files never contain literal think-tags
 # (edit tools strip HTML-looking spans).
@@ -92,20 +106,31 @@ VALID_TYPES = {"required", "preferred", "bonus"}
 VALID_CATS = {"skill", "domain", "experience", "education", "other"}
 
 # ── Heuristic fallback ──────────────────────────────────────────────────────
+# Cue vocabularies are env-overridable (comma-separated) with the defaults below.
 
-_PREFERRED_CUES = ("preferred", "nice to have", "bonus", "plus", "ideal",
-                   "desired", "a plus", "advantageous", "not required but")
-_REQUIRED_CUES = ("required", "must", "minimum", "mandatory", "needs to have",
-                  "should have", "you will need", "qualification")
-_EDU_CUES = ("bachelor", "master", "mba", "degree", "phd", "b.s.", "m.s.", "university")
-_CERT_CUES = ("certified", "certification", "pmp", "csm", "safe", "aipmm")
+def _cue_list(env_name, default):
+    raw = os.environ.get(env_name)
+    if raw is None:
+        return default
+    return tuple(c.strip() for c in raw.split(",") if c.strip())
+
+_PREFERRED_CUES = _cue_list("EMR_PREFERRED_CUES",
+    ("preferred", "nice to have", "bonus", "plus", "ideal",
+     "desired", "a plus", "advantageous", "not required but"))
+_REQUIRED_CUES = _cue_list("EMR_REQUIRED_CUES",
+    ("required", "must", "minimum", "mandatory", "needs to have",
+     "should have", "you will need", "qualification"))
+_EDU_CUES = _cue_list("EMR_EDU_CUES",
+    ("bachelor", "master", "mba", "degree", "phd", "b.s.", "m.s.", "university"))
+_CERT_CUES = _cue_list("EMR_CERT_CUES",
+    ("certified", "certification", "pmp", "csm", "safe", "aipmm"))
 
 
 def _sentences(text):
     """Crude sentence split that tolerates flattened text."""
     text = re.sub(r"\s+", " ", str(text or "")).strip()
     parts = re.split(r"(?<=[.!?])\s+(?=[A-Z(])", text)
-    return [p.strip() for p in parts if 15 < len(p.strip()) < 400]
+    return [p.strip() for p in parts if MIN_SENT < len(p.strip()) < MAX_SENT]
 
 
 def _categorize(sentence_lower):
@@ -135,9 +160,9 @@ def classify_requirements_heuristic(jd_text):
             "type": rtype,
             "category": cat,
             "quote": s[:200],
-            "confidence": 0.55,
+            "confidence": HEUR_CONF,
         })
-    return out[:15]
+    return out[:MAX_REQS]
 
 
 # ── LLM extraction ──────────────────────────────────────────────────────────
@@ -152,7 +177,7 @@ Rules:
 - "bonus" = explicitly optional extras (equity, side projects, open-source).
 - The "quote" MUST be copied character-for-character from the JD (max 25 words). Never paraphrase the quote.
 - Include: years-of-experience, education, certifications, domain/industry knowledge, technical skills.
-- Max 15 items. Output ONLY the JSON object.
+- Max {max_reqs} items. Output ONLY the JSON object.
 
 JOB DESCRIPTION:
 <<<
@@ -163,7 +188,7 @@ JOB DESCRIPTION:
 def _ollama_generate(jd_text):
     """Call an OpenAI-compatible chat endpoint (ollama-cloud or local /v1).
     Returns (parsed_json_or_None, error_string_or_None)."""
-    prompt = _PROMPT_TMPL.format(jd=jd_text[:12000])
+    prompt = _PROMPT_TMPL.format(jd=jd_text[:MAX_JD_CHARS], max_reqs=MAX_REQS)
     payload = json.dumps({
         "model": MODEL,
         "messages": [{"role": "user", "content": prompt}],
@@ -250,7 +275,7 @@ def _verify_and_clean(requirements, jd_text):
         quote = str(r.get("quote", "")).strip()
         rtype = str(r.get("type", "")).lower()
         cat = str(r.get("category", "")).lower()
-        if not text or len(text) > 200 or len(quote) < 10:
+        if not text or len(text) > 200 or len(quote) < MIN_QUOTE:
             continue
         if rtype not in VALID_TYPES or cat not in VALID_CATS:
             continue
@@ -261,12 +286,12 @@ def _verify_and_clean(requirements, jd_text):
             continue
         seen_texts.add(key)
         try:
-            conf = max(0.0, min(1.0, float(r.get("confidence", 0.8))))
+            conf = max(0.0, min(1.0, float(r.get("confidence", LLM_CONF))))
         except (TypeError, ValueError):
-            conf = 0.8
+            conf = LLM_CONF
         kept.append({"text": text, "type": rtype, "category": cat,
                      "quote": quote, "confidence": round(conf, 2)})
-    return kept[:15]
+    return kept[:MAX_REQS]
 
 
 # ── Cache & CLI ─────────────────────────────────────────────────────────────

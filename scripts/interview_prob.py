@@ -30,6 +30,9 @@ JOURNAL = BASE_DIR / "journal.xlsx"
 PROFILE_PATH = BASE_DIR / "resume" / "MASTER_PROFILE.md"
 DESCS_PATH = BASE_DIR / "output" / "descriptions_2026-07-14.json"
 
+# Column indexes from the shared journal definition (single source of truth)
+from journal import JOBS_COL_INDEX
+
 # Domains the candidate lacks — keyword matching is deliberately strict
 # (multi-word / specific terms only) to avoid false positives on generic JD
 # text. Single broad words like "compliance" or "security" fire on almost
@@ -149,13 +152,13 @@ def main():
     wb = load_workbook(str(JOURNAL))
     ws = wb["Jobs"]
 
-    MATCH_COL = 7
-    ATS_COL = 8
-    PROB_COL = 11
-    COMPANY_COL = 2
-    TITLE_COL = 3
-    LOCATION_COL = 4
-    URL_COL = 6
+    MATCH_COL = JOBS_COL_INDEX["match_score"]
+    ATS_COL = JOBS_COL_INDEX["ats_score"]
+    PROB_COL = JOBS_COL_INDEX["interview_prob"]
+    COMPANY_COL = JOBS_COL_INDEX["company"]
+    TITLE_COL = JOBS_COL_INDEX["title"]
+    LOCATION_COL = JOBS_COL_INDEX["location"]
+    URL_COL = JOBS_COL_INDEX["url"]
 
     results = []
     updated = 0

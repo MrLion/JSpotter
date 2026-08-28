@@ -58,6 +58,10 @@ JOBS_COLUMNS = [
     ("recommendation", "Recommendation", 40),
 ]
 
+# 1-based column index per Jobs-sheet key — the single source of truth for
+# every script that reads/writes the journal. Never hardcode a column number.
+JOBS_COL_INDEX: dict[str, int] = {key: idx for idx, (key, _, _) in enumerate(JOBS_COLUMNS, 1)}
+
 APPLICATIONS_COLUMNS = [
     ("date_found", "Date Found", 12),
     ("company", "Company", 22),
@@ -215,19 +219,30 @@ def _format_sheet(ws, columns):
 def _load_adzuna_salaries():
     """Map adzuna job URLs -> '$135,624' for non-predicted salaries only.
 
-    Returns {} silently when the extract file is absent or unreadable.
+    Annual-range sanity bounds come from config.json → hard_constraints →
+    salary_sanity (defaults 50k–2M). Returns {} silently when the extract
+    file is absent or unreadable.
     """
     path = BASE_DIR / "output" / "adzuna_extract.json"
     try:
         with open(path) as f:
             records = json.load(f)
+        # Salary sanity bounds from config (fall back to defaults)
+        try:
+            with open(BASE_DIR / "config.json") as f:
+                _hc = json.load(f).get("hard_constraints", {})
+            _sanity = _hc.get("salary_sanity", {})
+            _min = int(_sanity.get("min_annual", 50000))
+            _max = int(_sanity.get("max_annual", 2_000_000))
+        except Exception:
+            _min, _max = 50000, 2_000_000
         out = {}
         for r in records:
             try:
                 if str(r.get("salary_is_predicted")) == "0" and r.get("salary_min"):
                     lo, hi = int(r["salary_min"]), int(r.get("salary_max") or r["salary_min"])
                     # Sanity: annual USD range; drops hourly rates & typos
-                    if 50000 <= lo <= 2_000_000 and 50000 <= hi <= 2_000_000:
+                    if _min <= lo <= _max and _min <= hi <= _max:
                         out[r["url"]] = f"${lo:,}–${hi:,}" if hi > lo else f"${lo:,}"
             except (KeyError, TypeError, ValueError):
                 continue
@@ -385,14 +400,15 @@ def add_jobs(jobs_data, path=JOURNAL_PATH):
         ws_filter = wb[sheet_name]
         max_col = ws_filter.max_column
         ws_filter.auto_filter.ref = f'A1:{get_column_letter(max_col)}1'
-    # Recommendation header (col 19) — ensure on existing journals too
-    if ws.cell(row=1, column=19).value in (None, ''):
-        ws.cell(row=1, column=19, value='Recommendation')
-        ws.cell(row=1, column=19).font = HEADER_FONT
-        ws.cell(row=1, column=19).fill = HEADER_FILL
-        ws.cell(row=1, column=19).alignment = HEADER_ALIGN
-        ws.cell(row=1, column=19).border = THIN_BORDER
-        ws.column_dimensions[get_column_letter(19)].width = 40
+    # Recommendation header — ensure on existing journals too (derived column)
+    rec_col = _find_col_by_key(JOBS_COLUMNS, "recommendation")
+    if rec_col and ws.cell(row=1, column=rec_col).value in (None, ''):
+        ws.cell(row=1, column=rec_col, value='Recommendation')
+        ws.cell(row=1, column=rec_col).font = HEADER_FONT
+        ws.cell(row=1, column=rec_col).fill = HEADER_FILL
+        ws.cell(row=1, column=rec_col).alignment = HEADER_ALIGN
+        ws.cell(row=1, column=rec_col).border = THIN_BORDER
+        ws.column_dimensions[get_column_letter(rec_col)].width = 40
     
     # Validate all rows before saving
     errors = validate_journal_rows(ws)
@@ -485,19 +501,19 @@ def update_status(company, status, path=JOURNAL_PATH, title=None):
     
     updated = []
     for row in ws.iter_rows(min_row=2, max_col=20):
-        row_company = str(row[1].value) if row[1].value else ''
-        row_title = str(row[2].value) if row[2].value else ''
+        row_company = str(row[JOBS_COL_INDEX["company"] - 1].value) if row[JOBS_COL_INDEX["company"] - 1].value else ''
+        row_title = str(row[JOBS_COL_INDEX["title"] - 1].value) if row[JOBS_COL_INDEX["title"] - 1].value else ''
         if company.lower() in row_company.lower():
             if title and title.lower() not in row_title.lower():
                 continue
-            ws.cell(row=row[0].row, column=15).value = status  # Status
-            ws.cell(row=row[0].row, column=18).value = today   # Last Updated
+            ws.cell(row=row[0].row, column=JOBS_COL_INDEX["status"]).value = status
+            ws.cell(row=row[0].row, column=JOBS_COL_INDEX["last_updated"]).value = today
             if status == 'Applied':
-                ws.cell(row=row[0].row, column=17).value = today  # Date Applied
+                ws.cell(row=row[0].row, column=JOBS_COL_INDEX["date_applied"]).value = today
             if status in STATUS_COLORS:
-                row[1].fill = STATUS_COLORS[status]
+                row[JOBS_COL_INDEX["company"] - 1].fill = STATUS_COLORS[status]
                 if status == 'Applied':
-                    row[1].font = Font(bold=True)
+                    row[JOBS_COL_INDEX["company"] - 1].font = Font(bold=True)
             updated.append(f'{row_company} — {row_title}')
     
     wb.save(str(path))
@@ -544,35 +560,35 @@ def validate_journal_rows(ws):
         company = str(row[1].value) if row[1].value else ""
         title = str(row[2].value)[:40] if row[2].value else ""
         row_label = f"Row {row_idx} ({company}/{title})"
-        
-        # Job ID (col 14) — should be numeric ID or UUID, never a URL or priority word
-        job_id = str(row[13].value) if row[13].value else ""
+
+        # Job ID — should be numeric ID or UUID, never a URL or priority word
+        job_id = str(row[JOBS_COL_INDEX["job_id"] - 1].value) if row[JOBS_COL_INDEX["job_id"] - 1].value else ""
         if job_id:
             if job_id.startswith("http"):
                 errors.append(f"{row_label}: Job ID contains URL instead of ID — {job_id[:60]}")
             elif job_id in ("Low", "High", "Medium", "New", "Not Applied", "Applied", "Interview", "Rejected"):
                 errors.append(f"{row_label}: Job ID contains '{job_id}' — column shift detected")
-        
-        # Status (col 15) — must be a valid status
-        status = str(row[14].value) if row[14].value else ""
+
+        # Status — must be a valid status
+        status = str(row[JOBS_COL_INDEX["status"] - 1].value) if row[JOBS_COL_INDEX["status"] - 1].value else ""
         if status and status not in valid_statuses:
             errors.append(f"{row_label}: Status='{status}' — not a valid status")
-        
-        # Priority (col 13) — must be High/Medium/Low or empty
-        priority = str(row[12].value) if row[12].value else ""
+
+        # Priority — must be High/Medium/Low or empty
+        priority = str(row[JOBS_COL_INDEX["priority"] - 1].value) if row[JOBS_COL_INDEX["priority"] - 1].value else ""
         if priority and priority not in valid_priorities:
             errors.append(f"{row_label}: Priority='{priority[:40]}' — not a valid priority level")
-        
-        # Date Applied (col 17) — should be a date or None, not a URL
-        date_applied = str(row[16].value) if row[16].value else ""
+
+        # Date Applied — should be a date or None, not a URL
+        date_applied = str(row[JOBS_COL_INDEX["date_applied"] - 1].value) if row[JOBS_COL_INDEX["date_applied"] - 1].value else ""
         if date_applied and date_applied.startswith("http"):
             errors.append(f"{row_label}: Date Applied contains URL instead of date — {date_applied[:60]}")
-        
-        # App URL (col 16) — should be a URL or None, not a status word
-        app_url = str(row[15].value) if row[15].value else ""
+
+        # App URL — should be a URL or None, not a status word
+        app_url = str(row[JOBS_COL_INDEX["app_url"] - 1].value) if row[JOBS_COL_INDEX["app_url"] - 1].value else ""
         if app_url and app_url in ("New", "Not Applied", "Applied", "Low", "High", "Medium"):
             errors.append(f"{row_label}: App URL='{app_url}' — not a valid URL")
-    
+
     return errors
 
 
@@ -597,9 +613,9 @@ def show_status(path=JOURNAL_PATH):
     for row in ws.iter_rows(min_row=2, values_only=True):
         if not row[0]:
             continue
-        mode = row[4] or "unknown"  # search_mode column
+        mode = row[JOBS_COL_INDEX["search_mode"] - 1] or "unknown"
         sources[mode] = sources.get(mode, 0) + 1
-        if row[6]:  # match_score
+        if row[JOBS_COL_INDEX["match_score"] - 1]:  # match_score
             scored += 1
 
     for src, count in sorted(sources.items()):
@@ -615,7 +631,7 @@ def show_status(path=JOURNAL_PATH):
     for row in ws.iter_rows(min_row=2, values_only=True):
         if not row[0]:
             continue
-        status = row[6] or "No Status"  # status column
+        status = row[JOBS_COL_INDEX["status"] - 1] or "No Status"
         statuses[status] = statuses.get(status, 0) + 1
     for st, count in sorted(statuses.items()):
         print(f"  {st}: {count}")

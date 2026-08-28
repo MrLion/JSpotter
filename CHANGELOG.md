@@ -16,6 +16,9 @@ All notable changes to this project are documented here.
 - **Priority-threshold config load hoisted out of the per-job loop** in `run_scoring.py` (was re-reading config.json once per row).
 - **Docs** — SETUP.md project structure and pipeline table cover the two new scripts; run_daily.sh steps documented.
 
+### Fixed
+- **Hardcoded values removed across the pipeline** — all gate thresholds now read from `config.json → hard_constraints` (location tokens, remote tokens, onsite phrases, salary sanity bounds, states, generic words); all journal column numbers now derive from a single `journal.JOBS_COL_INDEX` map instead of hardcoded indexes scattered across `run_scoring.py`, `ats_score.py`, `match_score.py`, `interview_prob.py`, and `journal.py`; extraction thresholds and heuristic cue vocabularies are env-overridable (`EMR_*`). Only structural regexes and fallback defaults remain in code.
+
 ## [0.13.4] - 2026-08-27
 
 ### Fixed

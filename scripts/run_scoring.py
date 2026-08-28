@@ -37,6 +37,11 @@ from ats_score import calculate_ats_score
 from match_score import calculate_match_score
 from interview_prob import calculate_interview_prob
 from hard_constraints import check_hard_constraints
+from journal import JOBS_COL_INDEX
+
+# Recommendation column — derived from the journal column definitions so it
+# never drifts from the sheet layout (appended last; never insert mid-sheet).
+REC_COL = JOBS_COL_INDEX["recommendation"]
 
 PRIORITY_COLORS = {
     'High': PatternFill(start_color='FFD7D7', end_color='FFD7D7', fill_type='solid'),
@@ -113,13 +118,8 @@ def main():
     wb = load_workbook(str(JOURNAL))
     ws = wb["Jobs"]
 
-    COL = {
-        "date_found": 1, "company": 2, "title": 3, "location": 4,
-        "source": 5, "url": 6, "match_score": 7, "ats_score": 8,
-        "missing_skills": 9, "salary_estimate": 10, "interview_prob": 11,
-        "fit_notes": 12, "priority": 13, "job_id": 14, "status": 15,
-        "app_url": 16, "date_applied": 17,
-    }
+    # Column indexes come from the shared journal definition (single source of truth)
+    COL = JOBS_COL_INDEX
 
     unscored = []
     for row_idx in range(2, ws.max_row + 1):
@@ -201,7 +201,6 @@ def main():
     for job in unscored:
         desc = descriptions.get(job["url"], "")
         row_idx = job["row"]
-        rec_col = 19  # Recommendation (appended; never insert mid-sheet)
 
         # Hard-constraint gates — run BEFORE scoring. A failed gate means the
         # job is never scored or prioritized.
@@ -219,7 +218,7 @@ def main():
             ws.cell(row=row_idx, column=COL["ats_score"], value=0)
             ws.cell(row=row_idx, column=COL["interview_prob"], value="0%")
             ws.cell(row=row_idx, column=COL["fit_notes"], value=f"SKIPPED — {reason}")
-            ws.cell(row=row_idx, column=rec_col, value=f"SKIP: {reason}")
+            ws.cell(row=row_idx, column=REC_COL, value=f"SKIP: {reason}")
             ws.cell(row=row_idx, column=COL["priority"], value="Low")
             ws.cell(row=row_idx, column=COL["priority"]).fill = PRIORITY_COLORS["Low"]
             if not ws.cell(row=row_idx, column=COL["status"]).value:
@@ -235,7 +234,7 @@ def main():
             ws.cell(row=row_idx, column=COL["priority"], value="Low")
             ws.cell(row=row_idx, column=COL["priority"]).fill = PRIORITY_COLORS["Low"]
             ws.cell(row=row_idx, column=COL["fit_notes"], value="No description available")
-            ws.cell(row=row_idx, column=rec_col, value="MAYBE: no JD available to verify constraints")
+            ws.cell(row=row_idx, column=REC_COL, value="MAYBE: no JD available to verify constraints")
             continue
 
         # Calculate all scores
@@ -285,11 +284,11 @@ def main():
 
         # Recommendation for scored rows — band + threshold context
         if match_score >= _high_thresh:
-            ws.cell(row=row_idx, column=rec_col, value="APPLY")
+            ws.cell(row=row_idx, column=REC_COL, value="APPLY")
         elif match_score >= _med_thresh:
-            ws.cell(row=row_idx, column=rec_col, value="MAYBE")
+            ws.cell(row=row_idx, column=REC_COL, value="MAYBE")
         else:
-            ws.cell(row=row_idx, column=rec_col, value="LOW FIT")
+            ws.cell(row=row_idx, column=REC_COL, value="LOW FIT")
 
         scored += 1
         print(f"  {job['company'][:20]:<20} match={match_score:>3} ats={ats_score:>3} prob={prob:>2}%  {priority:<7} {job['title'][:30]}")
@@ -300,9 +299,9 @@ def main():
         ws_filter = wb[sheet_name]
         max_col = ws_filter.max_column
         ws_filter.auto_filter.ref = f'A1:{get_column_letter(max_col)}1'
-    # Recommendation header (col 19) — add if missing (idempotent)
-    if ws.cell(row=1, column=19).value in (None, ''):
-        ws.cell(row=1, column=19, value='Recommendation')
+    # Recommendation header — add if missing (idempotent)
+    if ws.cell(row=1, column=REC_COL).value in (None, ''):
+        ws.cell(row=1, column=REC_COL, value='Recommendation')
     
     # Color-code company cells by status
     from openpyxl.styles import PatternFill, Font
@@ -313,9 +312,9 @@ def main():
     blue_fill = PatternFill(start_color='B3D9FF', end_color='B3D9FF', fill_type='solid')
     
     for row in ws.iter_rows(min_row=2, max_col=20):
-        status_cell = ws.cell(row=row[0].row, column=15)
+        status_cell = ws.cell(row=row[0].row, column=JOBS_COL_INDEX["status"])
         status = str(status_cell.value).lower() if status_cell.value else ''
-        company_cell = row[1]
+        company_cell = row[JOBS_COL_INDEX["company"] - 1]
         
         if 'interview' in status:
             company_cell.fill = blue_fill
