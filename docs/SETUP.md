@@ -42,7 +42,8 @@ JSpotter/
 │   ├── email_triage.py         # Email inbox triage (rejections/interviews/confirmations/referrals)
 │   ├── search_adzuna.py        # Adzuna job search (REST API, no browser/login)
 │   ├── hard_constraints.py     # Hard-constraint gates (location, comp floor, deal-breakers)
-│   └── extract_requirements.py # JD requirement extraction (required/preferred, LLM + fallback)
+│   ├── extract_requirements.py # JD requirement extraction (required/preferred, LLM + fallback)
+│   └── evidence_score.py       # Evidence-based Candidate Fit scoring (Stage 2)
 ├── templates/                  # All templates (generic, no personal data)
 │   ├── MASTER_PROFILE.template.md
 │   ├── config.template.json
@@ -223,6 +224,7 @@ See **[docs/CRON.md](CRON.md)** for the full cron setup guide, including:
 | `email_triage.py` | Email inbox triage (rejections/interviews/confirmations/referrals) | — | — |
 | `hard_constraints.py` | Hard-constraint gates checked before scoring (SKIP + reason) | ✅ hard_constraints | — |
 | `extract_requirements.py` | JD requirement extraction into required/preferred/bonus (LLM with heuristic fallback, quote-verified) | — | — |
+| `evidence_score.py` | Evidence-based Candidate Fit scoring (LLM evidence retrieval + Python aggregation) | — | — |
 
 ## Scoring
 

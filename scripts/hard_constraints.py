@@ -101,6 +101,32 @@ def _annual_figures_in(text, sanity):
     return figures
 
 
+def extract_salary_range(text, sanity=None):
+    """Extract a formatted annual salary range (e.g. '$150,000–$180,000') from
+    JD text, or None if no credible range is found.
+
+    Picks the highest credible range in the text (the most senior/representative
+    figure). Returns a single value ('$150,000') when only one figure is found.
+    """
+    sanity = {**_DEFAULT_SALARY_SANITY, **(sanity or {})}
+    best = None  # (lo, hi) tuple of the best range found
+    for pat in _SALARY_PATTERNS:
+        for m in re.finditer(pat, text, re.I):
+            lo = _parse_salary_token(m.group(1), 'k' in pat, sanity)
+            hi = _parse_salary_token(m.group(2), 'k' in pat, sanity) if m.group(2) else None
+            if lo is None:
+                continue
+            # Prefer ranges over single figures; among ranges, the highest lo
+            if best is None or (hi is not None and (best[1] is None or lo > best[0])):
+                best = (lo, hi)
+    if best is None:
+        return None
+    lo, hi = best
+    if hi and hi > lo:
+        return f"${lo:,}–${hi:,}"
+    return f"${lo:,}"
+
+
 def _has_remote_signal(text_lower, remote_tokens):
     return any(t in text_lower for t in remote_tokens)
 

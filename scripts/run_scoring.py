@@ -35,7 +35,7 @@ CONFIG_PATH = BASE_DIR / "config.json"
 sys.path.insert(0, str(BASE_DIR))
 from ats_score import calculate_ats_score
 from match_score import calculate_match_score
-from hard_constraints import check_hard_constraints
+from hard_constraints import check_hard_constraints, extract_salary_range
 from journal import JOBS_COL_INDEX
 
 PRIORITY_COLORS = {
@@ -200,6 +200,14 @@ def main():
         # Hard-constraint gates — run BEFORE scoring. A failed gate means the
         # job is never scored or prioritized.
         salary_text = str(ws.cell(row=row_idx, column=COL["salary_estimate"]).value or "")
+        # If no salary is known yet, parse one from the JD text and backfill
+        # the Salary Estimate column (only when empty, so Adzuna's real values
+        # are never overwritten).
+        if not salary_text.strip() and desc:
+            parsed = extract_salary_range(desc, _cfg.get("hard_constraints", {}).get("salary_sanity"))
+            if parsed:
+                ws.cell(row=row_idx, column=COL["salary_estimate"], value=parsed)
+                salary_text = parsed
         _job = {"title": job["title"], "location": job["location"]}
         try:
             skip, skip_reasons = check_hard_constraints(_job, desc, salary_text, _cfg if _hard_cfg else {})

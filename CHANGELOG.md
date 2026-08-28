@@ -2,6 +2,36 @@
 
 All notable changes to this project are documented here.
 
+## [0.15.5] - 2026-08-27
+
+### Changed
+- **Removed the 40-JD cap on daily extraction/evidence scoring** — `run_daily.sh` now runs `extract_requirements.py` and `evidence_score.py` with no `--backfill` limit, so they process all pending JDs each run. The `--backfill N` flag still works for manual bounded runs; `0` (default) now means "no cap" instead of falling back to 40. Matches the actual daily inflow (a handful of new roles, not 40).
+
+## [0.15.4] - 2026-08-27
+
+### Changed
+- **Candidate Fit scoring wired into the daily cron** — `run_daily.sh` now runs `evidence_score.py --backfill 40` as Step 5 (after requirement extraction), so new jobs get a Candidate Fit score each morning. Adds ~1 LLM call/JD (~24s) to the daily run. Both local and template copies updated; CRON.md documents the new step.
+
+## [0.15.3] - 2026-08-27
+
+### Added
+- **Salary Estimate backfill from JD text** — `run_scoring.py` now parses an annual salary range from the fetched JD description (e.g. `$150,000–$180,000`, `$120k-$160k`) and writes it to the Salary Estimate column when the cell is empty. This populates pay ranges for LinkedIn jobs (which the guest API doesn't expose), not just Adzuna-sourced ones. Reuses the salary patterns from `hard_constraints.py` via a new `extract_salary_range()` helper; hourly rates and out-of-sanity-range figures are rejected. Never overwrites an existing value.
+
+## [0.15.2] - 2026-08-27
+
+### Fixed
+- **Lazily-created journal headers (Candidate Fit, Last Updated) were white** — headers added after `init_journal` (by `evidence_score.py` and the column migration) didn't get the standard dark-blue fill. Added a shared `_style_header_cell()` helper in `journal.py`; lazy header creation now styles the cell, and the two existing white cells in the live journal were fixed.
+
+## [0.15.1] - 2026-08-27
+
+### Changed
+- **`Candidate Fit` column moved next to `Match Score`** (col 8, right after col 7) so the evidence-based and keyword-based scores sit side by side for comparison. `JOBS_COLUMNS` reordered; live journal migrated (backup at `/tmp/journal_backup_pre_fit_move.xlsx`). All column positions re-derive automatically from `JOBS_COL_INDEX`.
+
+## [0.15.0] - 2026-08-27
+
+### Added
+- **`scripts/evidence_score.py` — evidence-based Candidate Fit scoring (Stage 2)** — for each JD, instead of "does the candidate have keyword X?", it answers "what evidence does the candidate have for requirement X?" and produces a 0–100 Candidate Fit score. One LLM call per JD classifies each extracted requirement's evidence strength (`direct` / `older_direct` / `strongly_transferable` / `weakly_transferable` / `none`) against the master profile; Python aggregates deterministically (strength → 1.0/0.8/0.6/0.3/0, weighted required 1.0 / preferred 0.5 / bonus 0.2). Results cached in `output/evidence_cache.json` and written to a new `Candidate Fit` column in the journal (alongside `match_score`, so evidence-based and keyword-based scores can be compared). Handles the thinking model's nondeterminism with retries and truncated-JSON salvage. Not wired into the daily cron — run manually (`--backfill N`) or per-JD (`--url`).
+
 ## [0.14.2] - 2026-08-27
 
 ### Removed

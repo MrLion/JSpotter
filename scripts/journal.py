@@ -43,6 +43,7 @@ JOBS_COLUMNS = [
     ("search_mode", "Source", 10),
     ("url", "Job URL", 45),
     ("match_score", "Match Score", 12),
+    ("candidate_fit", "Candidate Fit", 12),
     ("ats_score", "ATS Score", 12),
     ("missing_skills", "Missing Skills", 30),
     ("salary_estimate", "Salary Estimate", 16),
@@ -190,14 +191,19 @@ def init_journal(path=JOURNAL_PATH):
     return path
 
 
+def _style_header_cell(cell):
+    """Apply the standard header style (font, fill, alignment, border) to a cell."""
+    cell.font = HEADER_FONT
+    cell.fill = HEADER_FILL
+    cell.alignment = HEADER_ALIGN
+    cell.border = THIN_BORDER
+
+
 def _write_headers(ws, columns):
     """Write header row from column definitions."""
     for idx, (key, label, width) in enumerate(columns, 1):
         cell = ws.cell(row=1, column=idx, value=label)
-        cell.font = HEADER_FONT
-        cell.fill = HEADER_FILL
-        cell.alignment = HEADER_ALIGN
-        cell.border = THIN_BORDER
+        _style_header_cell(cell)
 
 
 def _format_sheet(ws, columns):

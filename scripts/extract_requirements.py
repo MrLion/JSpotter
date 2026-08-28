@@ -24,7 +24,7 @@ Output cache: output/requirements_cache.json, keyed by job URL:
   }
 
 Usage:
-  python3 scripts/extract_requirements.py                 # extract uncached JDs (cap 40/run)
+  python3 scripts/extract_requirements.py                 # extract all pending JDs (no cap)
   python3 scripts/extract_requirements.py --backfill 200  # process up to 200 uncached
   python3 scripts/extract_requirements.py --url <job_url> # one JD (re-extracts)
   python3 scripts/extract_requirements.py --report        # cache stats + accuracy proxy
@@ -335,7 +335,7 @@ def extract_one(url, jd_text, cache, use_llm=True):
 
 def main():
     ap = argparse.ArgumentParser(description="JD requirement extraction (LLM + heuristic fallback)")
-    ap.add_argument("--backfill", type=int, default=0, help="max JDs to process this run (0 = uncached only, cap 40)")
+    ap.add_argument("--backfill", type=int, default=0, help="max JDs to process this run (0 = all pending, no cap)")
     ap.add_argument("--url", help="extract a single JD by URL (re-extracts)")
     ap.add_argument("--report", action="store_true", help="print cache stats")
     ap.add_argument("--no-llm", action="store_true", help="heuristic only (no LLM calls)")
@@ -380,7 +380,7 @@ def main():
         return
 
     # Batch mode: uncached JDs, bounded, parallel workers
-    cap = args.backfill if args.backfill > 0 else 40
+    cap = args.backfill if args.backfill > 0 else None  # None = no cap
     todo_urls = [u for u, d in descs.items() if isinstance(d, str) and len(d) > 100 and u not in cache][:cap]
     workers = 1 if args.no_llm else MAX_WORKERS
     print(f"Extracting requirements for {len(todo_urls)} JD(s) "
