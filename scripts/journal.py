@@ -46,7 +46,6 @@ JOBS_COLUMNS = [
     ("ats_score", "ATS Score", 12),
     ("missing_skills", "Missing Skills", 30),
     ("salary_estimate", "Salary Estimate", 16),
-    ("interview_prob", "Interview Probability", 18),
     ("fit_notes", "Fit Notes", 40),
     ("priority", "Priority", 10),
 
@@ -349,8 +348,6 @@ def add_jobs(jobs_data, path=JOURNAL_PATH):
             elif key == "ats_score":
                 row_data[key] = ""
             elif key == "missing_skills":
-                row_data[key] = ""
-            elif key == "interview_prob":
                 row_data[key] = ""
             elif key == "fit_notes":
                 row_data[key] = ""

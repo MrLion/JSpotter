@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here.
 
+## [0.14.1] - 2026-08-27
+
+### Removed
+- **`interview_prob.py` and the Interview Probability column** — the 6-factor interview-probability estimate was redundant with the match score and added no actionable signal. The column is deleted from the journal (data migrated; backup at `/tmp/journal_backup_pre_interview_removal.xlsx`), the module is removed, and `run_scoring.py` no longer computes or writes it. The Telegram report drops the `Prob:` field. `JOBS_COL_INDEX` re-derives all column positions automatically; the Recommendation column shifts from col 19 to col 18.
+
 ## [0.14.0] - 2026-08-27
 
 ### Added

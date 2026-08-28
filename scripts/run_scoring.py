@@ -35,7 +35,6 @@ CONFIG_PATH = BASE_DIR / "config.json"
 sys.path.insert(0, str(BASE_DIR))
 from ats_score import calculate_ats_score
 from match_score import calculate_match_score
-from interview_prob import calculate_interview_prob
 from hard_constraints import check_hard_constraints
 from journal import JOBS_COL_INDEX
 
@@ -216,7 +215,6 @@ def main():
             reason = "; ".join(skip_reasons)
             ws.cell(row=row_idx, column=COL["match_score"], value=0)
             ws.cell(row=row_idx, column=COL["ats_score"], value=0)
-            ws.cell(row=row_idx, column=COL["interview_prob"], value="0%")
             ws.cell(row=row_idx, column=COL["fit_notes"], value=f"SKIPPED — {reason}")
             ws.cell(row=row_idx, column=REC_COL, value=f"SKIP: {reason}")
             ws.cell(row=row_idx, column=COL["priority"], value="Low")
@@ -230,7 +228,6 @@ def main():
             # Can't score without description
             ws.cell(row=row_idx, column=COL["match_score"], value=0)
             ws.cell(row=row_idx, column=COL["ats_score"], value=0)
-            ws.cell(row=row_idx, column=COL["interview_prob"], value="5%")
             ws.cell(row=row_idx, column=COL["priority"], value="Low")
             ws.cell(row=row_idx, column=COL["priority"]).fill = PRIORITY_COLORS["Low"]
             ws.cell(row=row_idx, column=COL["fit_notes"], value="No description available")
@@ -240,7 +237,6 @@ def main():
         # Calculate all scores
         ats_score, ats_details = calculate_ats_score(desc, profile)
         match_score, match_details = calculate_match_score(job, desc, profile)
-        prob = calculate_interview_prob(match_score, ats_score, job["title"], desc, job["location"])
 
         if match_score >= _high_thresh:
             priority = "High"
@@ -267,7 +263,6 @@ def main():
         ws.cell(row=row_idx, column=COL["match_score"], value=match_score)
         ws.cell(row=row_idx, column=COL["ats_score"], value=ats_score)
         ws.cell(row=row_idx, column=COL["missing_skills"], value=missing_str)
-        ws.cell(row=row_idx, column=COL["interview_prob"], value=f"{prob}%")
         ws.cell(row=row_idx, column=COL["fit_notes"], value=fit_notes)
         ws.cell(row=row_idx, column=COL["priority"], value=priority)
         ws.cell(row=row_idx, column=COL["priority"]).fill = PRIORITY_COLORS[priority]
@@ -291,7 +286,7 @@ def main():
             ws.cell(row=row_idx, column=REC_COL, value="LOW FIT")
 
         scored += 1
-        print(f"  {job['company'][:20]:<20} match={match_score:>3} ats={ats_score:>3} prob={prob:>2}%  {priority:<7} {job['title'][:30]}")
+        print(f"  {job['company'][:20]:<20} match={match_score:>3} ats={ats_score:>3}  {priority:<7} {job['title'][:30]}")
 
     # Ensure auto-filters on all sheets
     from openpyxl.utils import get_column_letter

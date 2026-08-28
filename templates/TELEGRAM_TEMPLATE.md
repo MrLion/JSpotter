@@ -16,7 +16,7 @@ Use this format when the cron job delivers the daily job scan results to Telegra
 
 🔥 High Priority (New)
 {COMPANY} — {TITLE}
-Match: {SCORE} | ATS: {ATS} | Prob: {PROB}
+Match: {SCORE} | ATS: {ATS}
 {LOCATION}
 {URL}
 

@@ -33,7 +33,6 @@ JSpotter/
 │   ├── run_scoring.py          # Full scoring pipeline (match, ATS, interview prob)
 │   ├── match_score.py          # Match score algorithm (config-driven domains)
 │   ├── ats_score.py            # ATS keyword overlap score
-│   ├── interview_prob.py       # Interview probability algorithm
 │   ├── generate_pdf.py         # PDF + cover letter generator (ReportLab)
 │   ├── quality_gate.py         # Technical quality gate (6 checks, 100pts)
 │   ├── validate_tailoring.py   # Structural validation + auto-fix
@@ -215,7 +214,6 @@ See **[docs/CRON.md](CRON.md)** for the full cron setup guide, including:
 | `run_scoring.py` | Fetch descriptions + calculate all scores | ✅ priority thresholds | — |
 | `match_score.py` | Match score algorithm (config-driven domains) | ✅ domains, location, thresholds | — |
 | `ats_score.py` | ATS keyword overlap algorithm | — | — |
-| `interview_prob.py` | Interview probability algorithm | ✅ preferred location | — |
 | `generate_pdf.py` | PDF generation with quality gate | ✅ output dir | ✅ all design |
 | `quality_gate.py` | Technical quality scoring (Gate 1, config-driven) | ✅ quality threshold, candidate config | — |
 | `validate_tailoring.py` | Structural validation + auto-fix (config-driven) | ✅ candidate config | — |
