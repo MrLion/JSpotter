@@ -241,6 +241,14 @@ See **[docs/CRON.md](CRON.md)** for the full cron setup guide, including:
 
 Domain keywords use multi-word matching (e.g., "cybersecurity" not "security", "investment bank" not "investment") to avoid false positive domain matches across unrelated JDs.
 
+### Candidate Fit (evidence-based, 0-100)
+
+`evidence_score.py` computes a separate **Candidate Fit** score (stored in its own column next to Match Score) that answers "what evidence does the candidate have for each requirement?" rather than "does the candidate have keyword X?". One LLM call per JD classifies each extracted requirement's evidence strength (`direct` / `older_direct` / `strongly_transferable` / `weakly_transferable` / `none`) against the master profile; Python aggregates deterministically (strength → 1.0/0.8/0.6/0.3/0, weighted required 1.0 / preferred 0.5 / bonus 0.2). Results are cached in `output/evidence_cache.json`. Because it weighs actual evidence, it is typically stricter than the keyword-based Match Score.
+
+### Salary Estimate
+
+The Salary Estimate column is populated from two sources: Adzuna non-predicted salaries (for Adzuna-sourced jobs) and, when the cell is empty, an annual range parsed from the JD text during scoring (e.g. `$150,000–$180,000`, `$120k-$160k`). Hourly rates and out-of-sanity-range figures are rejected. Existing values are never overwritten.
+
 ### Priority Thresholds (configurable)
 - **High:** ≥80
 - **Medium:** 65-79
