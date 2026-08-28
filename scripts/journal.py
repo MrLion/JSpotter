@@ -55,6 +55,7 @@ JOBS_COLUMNS = [
     ("app_url", "App URL", 45),
     ("date_applied", "Date Applied", 12),
     ("last_updated", "Last Updated", 12),
+    ("recommendation", "Recommendation", 40),
 ]
 
 APPLICATIONS_COLUMNS = [
@@ -211,6 +212,30 @@ def _format_sheet(ws, columns):
             ws.cell(row=row_idx, column=col_idx).alignment = wrap
 
 
+def _load_adzuna_salaries():
+    """Map adzuna job URLs -> '$135,624' for non-predicted salaries only.
+
+    Returns {} silently when the extract file is absent or unreadable.
+    """
+    path = BASE_DIR / "output" / "adzuna_extract.json"
+    try:
+        with open(path) as f:
+            records = json.load(f)
+        out = {}
+        for r in records:
+            try:
+                if str(r.get("salary_is_predicted")) == "0" and r.get("salary_min"):
+                    lo, hi = int(r["salary_min"]), int(r.get("salary_max") or r["salary_min"])
+                    # Sanity: annual USD range; drops hourly rates & typos
+                    if 50000 <= lo <= 2_000_000 and 50000 <= hi <= 2_000_000:
+                        out[r["url"]] = f"${lo:,}–${hi:,}" if hi > lo else f"${lo:,}"
+            except (KeyError, TypeError, ValueError):
+                continue
+        return out
+    except Exception:
+        return {}
+
+
 def add_jobs(jobs_data, path=JOURNAL_PATH):
     """Add jobs to the Jobs sheet. Skips duplicates by App URL, then URL, then company+title+location."""
     if not path.exists():
@@ -257,6 +282,9 @@ def add_jobs(jobs_data, path=JOURNAL_PATH):
     added = 0
     skipped = 0
     date_str = datetime.now().strftime("%Y-%m-%d")
+
+    # Real (non-predicted) Adzuna salaries for Salary Estimate autofill
+    salary_by_url = _load_adzuna_salaries()
 
     for job in jobs_data:
         url = job.get("url", "").strip()
@@ -307,14 +335,15 @@ def add_jobs(jobs_data, path=JOURNAL_PATH):
                 row_data[key] = ""
             elif key == "missing_skills":
                 row_data[key] = ""
-            elif key == "salary_estimate":
-                row_data[key] = ""
             elif key == "interview_prob":
                 row_data[key] = ""
             elif key == "fit_notes":
                 row_data[key] = ""
             elif key == "priority":
                 row_data[key] = ""
+            elif key == "salary_estimate":
+                # Autofill from Adzuna real salaries; job JSON may override
+                row_data[key] = salary_by_url.get(url, "") or job.get("salary_estimate", "")
             elif key == "status":
                 status = job.get("status") or "Not Applied"
                 row_data[key] = status
@@ -356,6 +385,14 @@ def add_jobs(jobs_data, path=JOURNAL_PATH):
         ws_filter = wb[sheet_name]
         max_col = ws_filter.max_column
         ws_filter.auto_filter.ref = f'A1:{get_column_letter(max_col)}1'
+    # Recommendation header (col 19) — ensure on existing journals too
+    if ws.cell(row=1, column=19).value in (None, ''):
+        ws.cell(row=1, column=19, value='Recommendation')
+        ws.cell(row=1, column=19).font = HEADER_FONT
+        ws.cell(row=1, column=19).fill = HEADER_FILL
+        ws.cell(row=1, column=19).alignment = HEADER_ALIGN
+        ws.cell(row=1, column=19).border = THIN_BORDER
+        ws.column_dimensions[get_column_letter(19)].width = 40
     
     # Validate all rows before saving
     errors = validate_journal_rows(ws)

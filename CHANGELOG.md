@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here.
 
+## [0.14.0] - 2026-08-27
+
+### Added
+- **Hard-constraint gates (deal-breakers before scoring)** — new `scripts/hard_constraints.py` module + a pre-scoring gate check in `run_scoring.py`. Gates: allowed locations (Boston/Remote), fully on-site demands outside allowed locations (including on-site cities named inside the JD text), compensation floor ($140,000 — from Adzuna non-predicted salaries or JD text, hourly-rate immune, inclusive at the floor, fail-open when salary is undisclosed), max years-of-experience requirement (20), and text blockers (security clearance, citizenship requirements). A job failing any gate is never scored or prioritized: it gets match=0, `Recommendation: SKIP: <reason>`, and surfaces in the new 🚫 Gated section of the daily Telegram report instead of the high-priority list. All thresholds live in `config.json → hard_constraints` (unset/null = gate inactive; both configs updated).
+- **`Recommendation` column in the journal (Jobs sheet, col 19)** — `APPLY` / `MAYBE` / `LOW FIT` from score bands, or `SKIP: <reason>` from gates. Appended only (no existing column indexes shift); header is added idempotently to existing journals by both `journal.py --add` and `run_scoring.py`.
+- **`scripts/extract_requirements.py` — JD requirement extraction** — classifies every requirement in a JD as `required` / `preferred` / `bonus` with category and confidence, stored in `output/requirements_cache.json`. Primary engine: ollama-cloud (`glm-5.3-flash`, OpenAI-compatible endpoint, 5 parallel workers, ~4s/JD); automatic fallback to a pure-Python heuristic classifier when the LLM is unavailable. Every extracted requirement is quote-verified against the source JD (hallucination guard); markdown-fenced and token-truncated model output is salvaged; LLM errors are recorded in the cache and surfaced in `--report` instead of failing silently. Config via env (`EMR_ENDPOINT`/`EMR_MODEL`/`EMR_TIMEOUT`/`EMR_MAX_TOKENS`/`EMR_WORKERS`/`OLLAMA_API_KEY`, falling back to `~/.hermes/.env`).
+- **`run_daily.sh` step 4** — the daily cron now runs requirement extraction after scoring (cap 40/run, cache-backed, no-op for already-extracted JDs). Both the local and template copies updated.
+- **Salary Estimate autofill** — `journal.py --add` now fills the Salary Estimate column from `output/adzuna_extract.json` real (non-predicted) salaries, with annual-range sanity bounds.
+
+### Changed
+- **`run_scoring.py` JD fetch preserves line structure** — block-level tags now convert to newlines instead of flattening everything to one line, so requirement/section parsing has real boundaries going forward (the existing cache remains flattened; new fetches accumulate structured). JSON-LD fallback also preserves `\n`.
+- **Priority-threshold config load hoisted out of the per-job loop** in `run_scoring.py` (was re-reading config.json once per row).
+- **Docs** — SETUP.md project structure and pipeline table cover the two new scripts; run_daily.sh steps documented.
+
 ## [0.13.4] - 2026-08-27
 
 ### Fixed

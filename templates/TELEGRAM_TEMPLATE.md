@@ -22,6 +22,9 @@ Match: {SCORE} | ATS: {ATS} | Prob: {PROB}
 
 {repeat for each high-priority job}
 
+🚫 Gated (SKIP): {SKIP_COUNT}
+{repeat for each newly gated job: COMPANY — TITLE: reason, max 3 lines}
+
 🟡 Medium/Low Priority: {MED_COUNT} medium, {LOW_COUNT} low
 
 ---

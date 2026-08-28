@@ -140,6 +140,14 @@
     },
     "preferred_location": "Boston"
   },
+  "hard_constraints": {
+    "_comment": "Deal-breaker gates checked BEFORE scoring. Set your own values; leave a key out or null to disable that gate. Jobs failing a gate get Recommendation=SKIP with reason.",
+    "comp_floor": 0,
+    "allowed_locations": ["Your City", "Remote"],
+    "onsite_tolerance": "hybrid",
+    "max_years_required": 20,
+    "text_blockers": ["security clearance", "must be a us citizen"]
+  },
   "resume_tailoring": {
     "bullet_max_words": 35,
     "quality_gate_threshold": 75,

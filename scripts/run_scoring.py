@@ -36,6 +36,7 @@ sys.path.insert(0, str(BASE_DIR))
 from ats_score import calculate_ats_score
 from match_score import calculate_match_score
 from interview_prob import calculate_interview_prob
+from hard_constraints import check_hard_constraints
 
 PRIORITY_COLORS = {
     'High': PatternFill(start_color='FFD7D7', end_color='FFD7D7', fill_type='solid'),
@@ -69,8 +70,13 @@ def fetch_job_description(url, timeout=20):
             html, re.DOTALL
         )
         if match:
-            text = re.sub(r'<[^>]+>', ' ', match.group(1))
-            text = re.sub(r'\s+', ' ', text).strip()
+            # Preserve block structure: block-level tags become newlines so
+            # downstream requirement parsing can use section boundaries.
+            text = re.sub(r'</(?:p|div|li|ul|ol|h[1-6]|section|article)\s*>', '\n', match.group(1), flags=re.I)
+            text = re.sub(r'<br\s*/?>', '\n', text, flags=re.I)
+            text = re.sub(r'<[^>]+>', ' ', text)
+            text = '\n'.join(re.sub(r'\s+', ' ', line).strip() for line in text.split('\n'))
+            text = re.sub(r'\n{2,}', '\n', text).strip()
             text = text.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
             if len(text) > 50:
                 return text
@@ -78,7 +84,7 @@ def fetch_job_description(url, timeout=20):
         # Fallback: JSON-LD
         match2 = re.search(r'"description"\s*:\s*"((?:[^"\\]|\\.)*)"', html)
         if match2:
-            text = match2.group(1).replace('\\n', ' ').replace('\\"', '"')
+            text = match2.group(1).replace('\\n', '\n').replace('\\"', '"')
             text = re.sub(r'<[^>]+>', ' ', text)
             text = re.sub(r'\\u003c[^>]*\\u003e', ' ', text)
             text = re.sub(r'\s+', ' ', text).strip()
@@ -186,12 +192,40 @@ def main():
             _cfg = json.load(_f)
         _high_thresh = _cfg.get("scoring", {}).get("priority_thresholds", {}).get("high", 80)
         _med_thresh = _cfg.get("scoring", {}).get("priority_thresholds", {}).get("medium", 65)
+        _hard_cfg = _cfg.get("hard_constraints", {})
     except Exception:
         _high_thresh, _med_thresh = 80, 65
+        _hard_cfg = {}
+        _cfg = {}
 
     for job in unscored:
         desc = descriptions.get(job["url"], "")
         row_idx = job["row"]
+        rec_col = 19  # Recommendation (appended; never insert mid-sheet)
+
+        # Hard-constraint gates — run BEFORE scoring. A failed gate means the
+        # job is never scored or prioritized.
+        salary_text = str(ws.cell(row=row_idx, column=COL["salary_estimate"]).value or "")
+        _job = {"title": job["title"], "location": job["location"]}
+        try:
+            skip, skip_reasons = check_hard_constraints(_job, desc, salary_text, _cfg if _hard_cfg else {})
+        except Exception as _e:
+            print(f"  WARN: gate check failed for row {row_idx}: {_e}")
+            skip, skip_reasons = False, []
+
+        if skip:
+            reason = "; ".join(skip_reasons)
+            ws.cell(row=row_idx, column=COL["match_score"], value=0)
+            ws.cell(row=row_idx, column=COL["ats_score"], value=0)
+            ws.cell(row=row_idx, column=COL["interview_prob"], value="0%")
+            ws.cell(row=row_idx, column=COL["fit_notes"], value=f"SKIPPED — {reason}")
+            ws.cell(row=row_idx, column=rec_col, value=f"SKIP: {reason}")
+            ws.cell(row=row_idx, column=COL["priority"], value="Low")
+            ws.cell(row=row_idx, column=COL["priority"]).fill = PRIORITY_COLORS["Low"]
+            if not ws.cell(row=row_idx, column=COL["status"]).value:
+                ws.cell(row=row_idx, column=COL["status"], value="Not Applied")
+            print(f"  SKIP {job['company'][:20]:<20} {reason[:80]}")
+            continue
 
         if not desc or len(desc) < 50:
             # Can't score without description
@@ -201,6 +235,7 @@ def main():
             ws.cell(row=row_idx, column=COL["priority"], value="Low")
             ws.cell(row=row_idx, column=COL["priority"]).fill = PRIORITY_COLORS["Low"]
             ws.cell(row=row_idx, column=COL["fit_notes"], value="No description available")
+            ws.cell(row=row_idx, column=rec_col, value="MAYBE: no JD available to verify constraints")
             continue
 
         # Calculate all scores
@@ -248,6 +283,14 @@ def main():
         if not ws.cell(row=row_idx, column=COL["status"]).value:
             ws.cell(row=row_idx, column=COL["status"], value="Not Applied")
 
+        # Recommendation for scored rows — band + threshold context
+        if match_score >= _high_thresh:
+            ws.cell(row=row_idx, column=rec_col, value="APPLY")
+        elif match_score >= _med_thresh:
+            ws.cell(row=row_idx, column=rec_col, value="MAYBE")
+        else:
+            ws.cell(row=row_idx, column=rec_col, value="LOW FIT")
+
         scored += 1
         print(f"  {job['company'][:20]:<20} match={match_score:>3} ats={ats_score:>3} prob={prob:>2}%  {priority:<7} {job['title'][:30]}")
 
@@ -257,6 +300,9 @@ def main():
         ws_filter = wb[sheet_name]
         max_col = ws_filter.max_column
         ws_filter.auto_filter.ref = f'A1:{get_column_letter(max_col)}1'
+    # Recommendation header (col 19) — add if missing (idempotent)
+    if ws.cell(row=1, column=19).value in (None, ''):
+        ws.cell(row=1, column=19, value='Recommendation')
     
     # Color-code company cells by status
     from openpyxl.styles import PatternFill, Font
