@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here.
 
+## [0.15.6] - 2026-08-29
+
+### Added
+- **`Work Mode` column (Remote/Hybrid/On-site)** — new column right after `Location` (city), before `Source`. Populated best-effort from the JD text during scoring (`run_scoring.py` → `parse_work_mode()`), with priority **remote > hybrid > onsite**. Blank when the JD doesn't state a work mode. `JOBS_COLUMNS` updated so all column indexes re-derive automatically; live journal migrated and backfilled from cached JDs (backup at `/tmp/journal_backup_workmode_20260829.xlsx`).
+
 ## [0.15.5] - 2026-08-27
 
 ### Changed
