@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here.
 
+## [0.15.7] - 2026-08-29
+
+### Removed
+- **`extract_requirements.py`, `evidence_score.py`, and the Candidate Fit feature** — the two LLM-based scripts (JD requirement extraction + evidence-based Candidate Fit scoring) were too slow to be usable (one LLM call per JD, ~45–120s each) and were removed from the daily cron. The scripts, their caches (`output/requirements_cache.json`, `output/evidence_cache.json`), and the `Candidate Fit` column in the journal are all removed. `run_daily.sh` now runs only search → add → score. Docs (`SETUP.md`, `CRON.md`, `templates/run_daily.sh`) updated to drop the extraction/evidence steps and the Candidate Fit section.
+
 ## [0.15.6] - 2026-08-29
 
 ### Added

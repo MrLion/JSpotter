@@ -35,12 +35,6 @@ PYTHONPATH="" "$PYBIN" scripts/journal.py --add output/linkedin_extract.json 2>&
 echo "=== Step 3: Score New Jobs ==="
 PYTHONPATH="" "$PYBIN" scripts/run_scoring.py 2>&1
 
-echo "=== Step 4: Extract Requirements ==="
-PYTHONPATH="" "$PYBIN" scripts/extract_requirements.py 2>&1
-
-echo "=== Step 5: Evidence Score ==="
-PYTHONPATH="" "$PYBIN" scripts/evidence_score.py 2>&1
-
 echo "=== DONE ==="
 ```
 
@@ -114,14 +108,6 @@ Gates (each disabled when its config key is unset/null):
 - **Compensation floor** — `comp_floor`; from Adzuna non-predicted salaries or JD text. Fail-open when salary is undisclosed.
 - **Max years** — `max_years_required`; skips roles requiring more experience than the limit.
 - **Text blockers** — `text_blockers` (e.g. "security clearance", "must be a us citizen").
-
-### Requirement Extraction (Step 4)
-
-`extract_requirements.py` classifies every requirement in a JD as `required` / `preferred` / `bonus` (with category and confidence), stored in `output/requirements_cache.json`. Primary engine is ollama-cloud (`glm-5.3-flash`); it falls back to a pure-Python heuristic when the LLM is unavailable. Every extracted requirement is quote-verified against the source JD (hallucination guard). The daily run processes all pending (uncached) JDs; the cache is keyed by URL so re-runs are no-ops. Config via `EMR_*` env vars (see the script docstring).
-
-### Evidence Score (Step 5)
-
-`evidence_score.py` computes the evidence-based **Candidate Fit** score for each JD: one LLM call classifies every extracted requirement's evidence strength (`direct` / `older_direct` / `strongly_transferable` / `weakly_transferable` / `none`) against the master profile, and Python aggregates deterministically to a 0–100 score. Results are cached in `output/evidence_cache.json` and written to the `Candidate Fit` column in the journal (next to `Match Score`). The daily run scores all pending JDs (the same ones Step 4 just extracted). Config via `EMR_*` env vars (see the script docstring).
 
 ### Status Updates
 

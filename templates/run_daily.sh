@@ -16,10 +16,4 @@ PYTHONPATH="" "$PYBIN" scripts/journal.py --add output/linkedin_extract.json 2>&
 echo "=== Step 3: Score New Jobs ==="
 PYTHONPATH="" "$PYBIN" scripts/run_scoring.py 2>&1
 
-echo "=== Step 4: Extract Requirements ==="
-PYTHONPATH="" "$PYBIN" scripts/extract_requirements.py 2>&1
-
-echo "=== Step 5: Evidence Score ==="
-PYTHONPATH="" "$PYBIN" scripts/evidence_score.py 2>&1
-
 echo "=== DONE ==="
