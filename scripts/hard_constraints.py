@@ -3,9 +3,10 @@
 Hard-constraint gates — deal-breaker checks run BEFORE job scoring.
 
 A job that fails any gate is never scored or prioritized; it gets
-Recommendation = "SKIP: <reason>" in the journal instead. This prevents a
-high skills match from papering over a fundamental constraint (compensation
-floor, excessive experience requirement, citizenship/clearance blocker).
+"SKIPPED — <reason>" in the Fit Notes column and Priority=Low instead. This
+prevents a high skills match from papering over a fundamental constraint
+(compensation floor, excessive experience requirement, citizenship/clearance
+blocker).
 
 ALL thresholds come from config.json → hard_constraints. A missing key or
 null value disables that gate, so old configs keep working unchanged.
