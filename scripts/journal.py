@@ -40,6 +40,7 @@ JOBS_COLUMNS = [
     ("company", "Company", 22),
     ("title", "Job Title", 35),
     ("location", "Location", 22),
+    ("work_mode", "Work Mode", 12),
     ("search_mode", "Source", 10),
     ("url", "Job URL", 45),
     ("match_score", "Match Score", 12),

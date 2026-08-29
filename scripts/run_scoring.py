@@ -18,6 +18,23 @@ import time
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+
+def parse_work_mode(desc):
+    """Best-effort work-mode classification from JD text.
+    Priority: remote > hybrid > onsite. Blank when the JD doesn't state it.
+    """
+    if not desc:
+        return ""
+    t = desc.lower()
+    if re.search(r"\bremote\b|work from home|\bwfh\b|remote-first|remote friendly", t):
+        return "Remote"
+    if re.search(r"\bhybrid\b", t):
+        return "Hybrid"
+    if re.search(r"on-?site|in-?office|in office", t):
+        return "On-site"
+    return ""
+
+
 try:
     from openpyxl import load_workbook
     from openpyxl.styles import PatternFill
@@ -268,6 +285,7 @@ def main():
         ws.cell(row=row_idx, column=COL["fit_notes"], value=fit_notes)
         ws.cell(row=row_idx, column=COL["priority"], value=priority)
         ws.cell(row=row_idx, column=COL["priority"]).fill = PRIORITY_COLORS[priority]
+        ws.cell(row=row_idx, column=COL["work_mode"], value=parse_work_mode(desc))
         
         # Apply text wrapping for long-text columns
         from openpyxl.styles import Alignment
