@@ -467,13 +467,16 @@ def remove_jobs(company=None, title=None, url=None, path=JOURNAL_PATH, all_medlo
     return removed
 
 
-def update_status(company, status, path=JOURNAL_PATH, title=None):
+def update_status(company, status, path=JOURNAL_PATH, title=None, location=None):
     """Update job status and set Last Updated timestamp. Archives PDFs for Rejected/Closed.
     
     Args:
         company: Company name to match (case-insensitive)
         status: New status (Applied, Interview, Rejected, Closed, Withdrawn, Not Applied)
         title: Optional title filter if multiple roles for same company
+        location: Optional location filter (case-insensitive substring match on the
+                  Location / city column) to scope to a specific role at a company
+                  that has the same title in multiple cities (e.g. EY across offices).
         path: Path to journal file
     """
     from openpyxl.styles import PatternFill, Font
@@ -496,8 +499,11 @@ def update_status(company, status, path=JOURNAL_PATH, title=None):
     for row in ws.iter_rows(min_row=2, max_col=20):
         row_company = str(row[JOBS_COL_INDEX["company"] - 1].value) if row[JOBS_COL_INDEX["company"] - 1].value else ''
         row_title = str(row[JOBS_COL_INDEX["title"] - 1].value) if row[JOBS_COL_INDEX["title"] - 1].value else ''
+        row_location = str(row[JOBS_COL_INDEX["location"] - 1].value) if row[JOBS_COL_INDEX["location"] - 1].value else ''
         if company.lower() in row_company.lower():
             if title and title.lower() not in row_title.lower():
+                continue
+            if location and location.lower() not in row_location.lower():
                 continue
             ws.cell(row=row[0].row, column=JOBS_COL_INDEX["status"]).value = status
             ws.cell(row=row[0].row, column=JOBS_COL_INDEX["last_updated"]).value = today
