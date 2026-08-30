@@ -660,6 +660,8 @@ def main():
     parser.add_argument("--title", help="Title filter when removing")
     parser.add_argument("--url", help="Job URL substring to match when removing")
     parser.add_argument("--remove-all-medlow", action="store_true", help="Remove all Medium/Low priority, Not Applied jobs")
+    parser.add_argument("--set-status", help="Set job status (Applied/Interview/Rejected/Closed/Withdrawn); match via --company/--title/--location")
+    parser.add_argument("--location", help="Location filter to scope status updates (case-insensitive city substring)")
     parser.add_argument("--status", action="store_true", help="Show summary stats")
     parser.add_argument("--path", default=str(JOURNAL_PATH), help="Journal file path")
     args = parser.parse_args()
@@ -681,6 +683,17 @@ def main():
                 print(f"  - {r}")
         else:
             print("No matching jobs found to remove.")
+    elif args.set_status:
+        if not args.company:
+            print("ERROR: --company is required with --set-status")
+            sys.exit(1)
+        updated = update_status(args.company, args.set_status, path=path, title=args.title, location=args.location)
+        if updated:
+            print(f"Set {args.set_status} on {len(updated)} row(s):")
+            for u in updated:
+                print(f"  - {u}")
+        else:
+            print("No matching jobs found.")
     elif args.status:
         show_status(path)
     else:
