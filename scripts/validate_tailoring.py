@@ -106,12 +106,19 @@ def validate_entry(entry, idx):
                         if client not in valid_sources:
                             errors.append(f'{company}: possible metric conflation — "{metric}" belongs to {valid_sources} but bullet mentions "{client}"')
     
-    # 6. Bullets ≤ 35 words (formula: verb + product + scope + result + method)
+    # 6. Bullets 25-35 words (formula: verb + product + scope + result + method)
+    #    Education/bridge entries (e.g. "Master of Science ... Clark University") are exempt
+    #    from the MINIMUM — rule 2b requires them to be ONE factual bullet.
+    EDU_HEADER = ("master", "bachelor", "university", "degree", "certificate", "msc", "mba")
     for h in highlights:
+        header_l = (h.get('header', '') or '').lower()
+        is_edu = any(k in header_l for k in EDU_HEADER)
         for b in h.get('bullets', []):
             word_count = len(b.split())
             if word_count > 35:
                 errors.append(f'{company}: bullet exceeds 35 words ({word_count}) — "{b[:40]}..."')
+            elif word_count < 25 and not is_edu:
+                errors.append(f'{company}: bullet under 25 words ({word_count}) — "{b[:40]}..."')
     
     # 7. Strength labels ≤ 4 words
     for s in entry.get('tailored_strengths', []):
