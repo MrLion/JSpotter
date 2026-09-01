@@ -26,7 +26,10 @@ Counts and new_candidates both reflect only NEW candidates (not seen in
 prior runs); all_candidate_ids lists every candidate detected this run.
 
 Dedupes across runs using a state file so the same email is only
-reported once.
+reported once. Emails are marked as seen (acked) ONLY after they are
+delivered — run with `EMJ_ACK="account:id,account:id"` to acknowledge
+delivery. Without an ack, detected emails stay pending and are
+re-reported next run, so a failed/silent run never drops an email.
 
 Configuration (env vars, all optional with defaults):
   EMJ_STATE        — path to the dedupe state file (default:
@@ -241,7 +244,28 @@ def classify(subject, body):
     return None
 
 
+def ack(ids):
+    """Mark the given account:id keys as seen (acknowledged/delivered).
+
+    Called by the cron agent AFTER it successfully produces and delivers
+    the digest. Without an ack, an email stays pending and is re-reported
+    on the next run — so a missed/failed run never silently drops an email.
+    """
+    seen = load_seen()
+    seen.update(ids)
+    save_seen(seen)
+    print(json.dumps({"acked": sorted(ids)}))
+
+
 def main():
+    # --ack: mark IDs as delivered and exit (no scan).
+    ack_raw = os.environ.get("EMJ_ACK", "").strip()
+    if ack_raw:
+        ids = [x.strip() for x in ack_raw.replace("|", ",").split(",") if x.strip()]
+        if ids:
+            ack(ids)
+            return
+
     seen = load_seen()
     now = datetime.now(timezone.utc)
     candidates = []
@@ -285,15 +309,13 @@ def main():
                     "type": etype,
                 })
 
-    # Report only NEW candidates (not previously seen).
+    # Report all un-seen candidates as NEW (pending delivery). They are NOT
+    # auto-marked as seen here — a run that detects them but fails to deliver
+    # (e.g. returns [SILENT]) must not drop them. The cron agent acks them
+    # via EMJ_ACK only after the digest is delivered.
     new_candidates = [c for c in candidates if f"{c['account']}:{c['id']}" not in seen]
 
-    # Mark all detected candidate IDs as seen so each email is reported only once.
-    seen.update(f"{c['account']}:{c['id']}" for c in candidates)
-    save_seen(seen)
-
-    # Counts reflect NEW candidates only, so consumers keyed on counts
-    # don't re-report emails already delivered in a previous run.
+    # Counts reflect NEW (pending delivery) candidates only.
     counts = Counter(c["type"] for c in new_candidates)
     result = {
         "found_ts": now.isoformat(),
