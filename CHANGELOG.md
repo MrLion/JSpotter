@@ -116,6 +116,9 @@ All notable changes to this project are documented here.
 ### Removed
 - **Redundant cron wrapper/symlink** — the cron job previously ran the script through a thin wrapper (and later a symlink) under the profile scripts dir. Removed both: the cron prompt now runs `scripts/email_triage.py` directly via the terminal tool. There is one source of truth (the committed repo script) and no indirection.
 
+### Fixed
+- **Missed-notification bug (emails silently dropped)** — the script previously marked an email as "seen" in the same run that detected it, so if a cron run detected an email but then returned `[SILENT]` (or failed to deliver), the email was added to the state file and never surfaced. This caused application confirmations (e.g. Solventum, Chronicle Media) to be missed. The script no longer auto-marks detected emails as seen; instead it reports every un-acked candidate each run, and the cron agent acknowledges delivery afterward via `EMJ_ACK="<account>:<id>,..."` after the digest is finalized. A failed/silent run now re-reports undelivered emails next run instead of dropping them.
+
 ## [0.13.0] - 2026-08-26
 
 ### Added
