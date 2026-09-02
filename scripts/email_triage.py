@@ -120,6 +120,19 @@ INTERVIEW_PATTERNS = [
     r"interview.{0,12}(?:invitation|invite|request|availability|reminder|scheduled|rescheduled|update|confirm|hold)",
 ]
 
+# Strong scheduling / recruiter-call signals. These indicate an actual
+# request to meet (not generic "interview resources" boilerplate), so they
+# override a "thank you for applying" confirmation line.
+STRONG_INTERVIEW_PATTERNS = [
+    r"recruiter call",
+    r"recruiter screen",
+    r"schedule.{0,15}(?:time|call|connect|meet|interview|screen)",
+    r"let me know your availability",
+    r"availability.{0,15}(?:call|interview|screen|meet)",
+    r"set up.{0,15}(?:call|interview|screen|meet|time)",
+    r"book.{0,15}(?:call|interview|screen|meet|time)",
+]
+
 # Application received / under review (not a decision).
 APPLICATION_CONFIRM_PATTERNS = [
     r"thank you for applying",
@@ -211,7 +224,7 @@ def get_message_body(account, mid):
 def classify(subject, body):
     """Return a classification string, or None for unclassified.
 
-    Priority: rejection > confirmation > referral > interview.
+    Priority: rejection > strong-interview > confirmation > referral > interview.
 
     Order matters: an application-confirmation email often contains
     boilerplate words like "interview resources" or "next steps" — so we
@@ -229,15 +242,21 @@ def classify(subject, body):
     if any_reject and ("unfortunately" not in haystack or strong):
         return "rejection"
 
-    # Definitive application confirmation / under-review — before interview,
-    # because these emails routinely mention "interview" as generic advice.
+    # Strong scheduling / recruiter-call signal — an actual request to meet
+    # overrides a generic "thank you for applying" confirmation line.
+    if any(re.search(p, haystack) for p in STRONG_INTERVIEW_PATTERNS):
+        return "interview"
+
+    # Definitive application confirmation / under-review — before weak
+    # interview signals, because these emails routinely mention "interview"
+    # as generic advice.
     if any(re.search(p, haystack) for p in APPLICATION_CONFIRM_PATTERNS):
         return "confirmation"
 
     if any(re.search(p, haystack) for p in REFERRAL_PATTERNS):
         return "referral"
 
-    # Interview requests: subject-only match.
+    # Interview requests: subject-only match (weak signal).
     if any(re.search(p, subject_l) for p in INTERVIEW_PATTERNS):
         return "interview"
 
