@@ -526,22 +526,74 @@ def update_status(company, status, path=JOURNAL_PATH, title=None, location=None)
         return bool(c) and c in f
 
     resume_dir = os.path.join(os.path.dirname(str(path)), 'resume', 'tailored')
+    # Convert any matching review JSONs to _review_notes.txt (standing rule:
+    # only txt review files remain) and delete the JSON, BEFORE archiving, so
+    # the generated txt rides along with the PDFs. Applies to both Applied and
+    # archive-status transitions.
+    import json as _json
+    def _convert_review_json(src_dir, dest_dir):
+        converted = 0
+        for f in os.listdir(src_dir):
+            if not (f.endswith('_review.json') and _match(f)):
+                continue
+            try:
+                with open(os.path.join(src_dir, f)) as _fh:
+                    d = _json.load(_fh)
+                hr = d.get('hr_score')
+                hm = d.get('hm_score')
+                combined = d.get('combined_score')
+                threshold = d.get('threshold', 70)
+                status_r = d.get('status', 'PASS' if (isinstance(hr, int) and hr >= threshold and isinstance(hm, int) and hm >= threshold) else 'FAIL')
+                lines = [
+                    f"{d.get('company', '?')} — {d.get('title', '?')} — Gate 2 Review",
+                    f"Status: {status_r} (HR {hr} / HM {hm}, combined {combined}, threshold {threshold})",
+                    "",
+                    _json.dumps(d.get('hr_breakdown', {}), indent=2),
+                    "",
+                    "HR ISSUES:",
+                ]
+                for issue in d.get('hr_issues', []):
+                    lines.append(f"- {issue}")
+                lines += ["", "HR NOTES:", d.get('hr_notes', ''), "", _json.dumps(d.get('hm_breakdown', {}), indent=2), "", "HM ISSUES:"]
+                for issue in d.get('hm_issues', []):
+                    lines.append(f"- {issue}")
+                lines += ["", "HM NOTES:", d.get('hm_notes', '')]
+                questions = d.get('hm_interview_questions') or []
+                if questions:
+                    lines += ["", "HM INTERVIEW QUESTIONS:"]
+                    for i, q in enumerate(questions, 1):
+                        lines.append(f"{i}. {q}")
+                lines += ["", "REGENERATE FEEDBACK:", d.get('regenerate_feedback', '')]
+                base = f[:-len('_review.json')]
+                with open(os.path.join(dest_dir, base + '_review_notes.txt'), 'w') as _fh:
+                    _fh.write('\n'.join(lines) + '\n')
+                converted += 1
+            except Exception as _e:
+                print(f'  WARN: review JSON convert failed for {f}: {_e}')
+                continue
+            os.remove(os.path.join(src_dir, f))
+        return converted
+
     if status == 'Applied':
         applied_dir = os.path.join(resume_dir, 'applied')
         os.makedirs(applied_dir, exist_ok=True)
+        _convert_review_json(resume_dir, applied_dir)
         for f in os.listdir(resume_dir):
             if _match(f) and (f.endswith('.pdf') or f.endswith('.txt')):
                 shutil.move(os.path.join(resume_dir, f), os.path.join(applied_dir, f))
     elif status in ('Rejected', 'Closed', 'Withdrawn'):
         archive_dir = os.path.join(resume_dir, 'archived')
         os.makedirs(archive_dir, exist_ok=True)
+        _convert_review_json(resume_dir, archive_dir)
         for f in os.listdir(resume_dir):
             if _match(f) and (f.endswith('.pdf') or f.endswith('.txt')):
                 shutil.move(os.path.join(resume_dir, f), os.path.join(archive_dir, f))
         applied_dir = os.path.join(resume_dir, 'applied')
         if os.path.isdir(applied_dir):
             for f in os.listdir(applied_dir):
-                if _match(f) and (f.endswith('.pdf') or f.endswith('.txt')):
+                if f.endswith('_review.json') and _match(f):
+                    _convert_review_json(applied_dir, archive_dir)
+                elif _match(f) and (f.endswith('.pdf') or f.endswith('.txt')):
                     shutil.move(os.path.join(applied_dir, f), os.path.join(archive_dir, f))
     
     for u in updated:
