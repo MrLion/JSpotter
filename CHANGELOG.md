@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here.
 
+## [0.15.9] - 2026-09-03
+
+### Added
+- **Review-JSON conversion in the status archiver (`update_status`)** — on any status transition to Applied (or Rejected/Closed/Withdrawn), matching `*_review.json` files are now automatically converted to `_review_notes.txt` and the JSON deleted (in `resume/tailored/`, and for archive transitions also within `applied/` for the same company), then the txt rides along with the PDFs into the destination folder. Enforces the "only txt review files remain" rule in code instead of per-review manual discipline; handles both Format A (flat) and older nested-format review JSONs.
+
 ## [0.15.8] - 2026-09-01
 
 ### Fixed
