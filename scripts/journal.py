@@ -13,6 +13,7 @@ Usage:
   python3 journal.py --remove --url 4449017604        # remove by job URL substring
   python3 journal.py --remove --company "Apple" --title "Product Manager"  # remove by company/title
   python3 journal.py --remove-all-medlow              # remove all Medium/Low Not-Applied jobs
+  python3 journal.py --remove --remove-stale-not-applied 30   # remove Not-Applied jobs older than 30 days
   python3 journal.py --status                          # show summary stats
 """
 
@@ -415,8 +416,10 @@ def add_jobs(jobs_data, path=JOURNAL_PATH):
     return added, skipped
 
 
-def remove_jobs(company=None, title=None, url=None, path=JOURNAL_PATH, all_medlow=False):
-    """Remove jobs from the journal by company/title/URL match, or all Medium/Low Not-Applied.
+def remove_jobs(company=None, title=None, url=None, path=JOURNAL_PATH, all_medlow=False,
+                stale_not_applied_days=None):
+    """Remove jobs from the journal by company/title/URL match, all Medium/Low Not-Applied,
+    or Not-Applied rows older than N days.
 
     Args:
         company: Company name to match (case-insensitive substring). Optional.
@@ -424,6 +427,9 @@ def remove_jobs(company=None, title=None, url=None, path=JOURNAL_PATH, all_medlo
         url: Optional URL substring to match (e.g. a LinkedIn job ID). Optional.
         path: Path to journal file.
         all_medlow: If True, remove all rows with Priority in (Medium, Low) AND status 'Not Applied'.
+        stale_not_applied_days: If set (int), remove rows with status 'Not Applied' whose
+            Date Found is older than N days. Applied/Interview/Rejected/Closed/Withdrawn
+            rows are never removed by this filter (history is preserved).
     Returns:
         list of removed row labels (str).
     """
@@ -434,10 +440,34 @@ def remove_jobs(company=None, title=None, url=None, path=JOURNAL_PATH, all_medlo
     comp_c, title_c = _col('Company'), _col('Job Title')
     url_c = _col('Job URL')
     prio_c, status_c = _col('Priority'), _col('Status')
+    found_c = _col('Date Found')
 
     to_delete = []
     for row in ws.iter_rows(min_row=2, max_col=max(len(hdr), 20)):
         r = row[0].row
+        if stale_not_applied_days is not None:
+            s = str(row[status_c - 1].value or '') if status_c else ''
+            if s != 'Not Applied':
+                continue
+            if not found_c:
+                continue
+            dv = row[found_c - 1].value
+            if dv is None:
+                continue
+            if isinstance(dv, datetime):
+                d = dv
+            else:
+                try:
+                    d = datetime.strptime(str(dv)[:10], "%Y-%m-%d")
+                except ValueError:
+                    try:
+                        d = datetime.strptime(str(dv)[:10], "%m/%d/%Y")
+                    except ValueError:
+                        continue
+            age_days = (datetime.now() - d).days
+            if age_days > stale_not_applied_days:
+                to_delete.append(r)
+            continue
         if all_medlow:
             p = str(row[prio_c - 1].value or '') if prio_c else ''
             s = str(row[status_c - 1].value or '') if status_c else ''
@@ -707,11 +737,12 @@ def main():
     parser = argparse.ArgumentParser(description="Job Journal — Excel tracking")
     parser.add_argument("--init", action="store_true", help="Create a new journal")
     parser.add_argument("--add", help="Add jobs from JSON file")
-    parser.add_argument("--remove", action="store_true", help="Remove jobs matching --company/--title/--url (or all Medium/Low Not-Applied with --remove-all-medlow)")
+    parser.add_argument("--remove", action="store_true", help="Remove jobs matching --company/--title/--url (or all Medium/Low Not-Applied with --remove-all-medlow, or Not-Applied rows older than N days with --remove-stale-not-applied N)")
     parser.add_argument("--company", help="Company name to match when removing")
     parser.add_argument("--title", help="Title filter when removing")
     parser.add_argument("--url", help="Job URL substring to match when removing")
     parser.add_argument("--remove-all-medlow", action="store_true", help="Remove all Medium/Low priority, Not Applied jobs")
+    parser.add_argument("--remove-stale-not-applied", type=int, metavar="DAYS", help="Remove Not Applied jobs whose Date Found is older than DAYS (with --remove); other statuses are preserved")
     parser.add_argument("--set-status", help="Set job status (Applied/Interview/Rejected/Closed/Withdrawn); match via --company/--title/--location")
     parser.add_argument("--location", help="Location filter to scope status updates (case-insensitive city substring)")
     parser.add_argument("--status", action="store_true", help="Show summary stats")
@@ -728,7 +759,8 @@ def main():
         add_jobs(jobs, path)
     elif args.remove or args.remove_all_medlow:
         removed = remove_jobs(company=args.company, title=args.title, url=args.url, path=path,
-                              all_medlow=args.remove_all_medlow)
+                              all_medlow=args.remove_all_medlow,
+                              stale_not_applied_days=args.remove_stale_not_applied)
         if removed:
             print(f"Removed {len(removed)} job(s):")
             for r in removed:

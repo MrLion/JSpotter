@@ -8,7 +8,7 @@ Checks:
 3. No sole proprietor / entrepreneur / agentic trading entries
 4. Bullets ≤ 15 words
 5. Strength labels ≤ 4 words
-6. Summary ≤ 3 sentences
+6. Summary ≤ 4 sentences
 7. No client-name prefixes in bullets (client names from config)
 8. No pandering phrases ("directly relevant to", "well-suited for")
 9. Uses preferred name, not full legal name
@@ -126,11 +126,11 @@ def validate_entry(entry, idx):
         if word_count > 4:
             errors.append(f'{company}: strength label exceeds 4 words ({word_count}) — "{s}"')
     
-    # 8. Summary ≤ 3 sentences
+    # 8. Summary ≤ 4 sentences (Sep 2026: user set 3-4; was ≤3)
     summary = entry.get('tailored_summary', '')
     sentence_count = summary.count('.') + summary.count('!') + summary.count('?')
-    if sentence_count > 3:
-        errors.append(f'{company}: summary exceeds 3 sentences ({sentence_count})')
+    if sentence_count > 4:
+        errors.append(f'{company}: summary exceeds 4 sentences ({sentence_count})')
     
     # 9. No pandering
     for phrase in PANDERING:
