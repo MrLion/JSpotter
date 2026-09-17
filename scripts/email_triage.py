@@ -13,7 +13,7 @@ Output shape (one JSON object):
     "window_days": N,
     "accounts": ["icloud", "gmail"],
     "total_scanned": M,
-    "counts": {"rejection": n, "interview": n,
+    "counts": {"rejection": n, "closed": n, "interview": n,
                "confirmation": n, "referral": n, "other": n},
     "new_candidates": [
       {"id": 23084, "date": ..., "from": ..., "subject": ...,
@@ -104,6 +104,20 @@ STRONG_PATTERNS = [
     r"no longer recruiting",
     r"no longer under consideration",
     r"we regret to inform",
+]
+
+# Position-closed / withdrawn signals — the REQ was closed (filled or pulled)
+# with no candidate-specific decision. Distinct from a candidate rejection:
+# the journal keeps these two end states separate (Closed vs Rejected).
+CLOSED_PATTERNS = [
+    r"position.*(?:is|has been) (?:now )?closed",
+    r"now closed",
+    r"position has been filled",
+    r"position is (?:no longer|now) available",
+    r"this (?:position|role).*(?:closed|filled)",
+    r"the position is closed",
+    r"won't be moving forward with interviews because the position is now closed",
+    r"position.*been withdrawn",
 ]
 
 # Interview requests / scheduling invites (ACTION REQUIRED).
@@ -224,7 +238,7 @@ def get_message_body(account, mid):
 def classify(subject, body):
     """Return a classification string, or None for unclassified.
 
-    Priority: rejection > strong-interview > confirmation > referral > interview.
+    Priority: rejection > closed > strong-interview > confirmation > referral > interview.
 
     Order matters: an application-confirmation email often contains
     boilerplate words like "interview resources" or "next steps" — so we
@@ -239,6 +253,14 @@ def classify(subject, body):
     # Rejection first (strong signal wins over a "thank you" confirmation).
     strong = any(re.search(p, haystack) for p in STRONG_PATTERNS)
     any_reject = any(re.search(p, haystack) for p in REJECT_PATTERNS)
+
+    # Position-closed / withdrawn — the req itself was closed, not the
+    # candidate declined. Distinct terminal state (journal keeps Closed and
+    # Rejected separate). Check before generic rejection.
+    # "Thank you for your interest" + "position is now closed" → closed.
+    if any(re.search(p, haystack) for p in CLOSED_PATTERNS):
+        return "closed"
+
     if any_reject and ("unfortunately" not in haystack or strong):
         return "rejection"
 
