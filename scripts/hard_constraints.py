@@ -139,15 +139,30 @@ def check_hard_constraints(job, description, salary_text="", config=None):
     # ── Max years requirement gate ──
     max_years = hc.get("max_years_required")
     if max_years:
-        m = re.search(r'(\d+)\+?\s*(?:\(\s*\w+\s*\)\s*)?years?(?:\s+of)?\s+(?:relevant\s+|professional\s+|related\s+)?experience', desc_lower) \
-            or re.search(r'(\d+)\+?\s*years?', desc_lower)
+        years = None
+        # Primary: explicit "<N> years [of] [relevant/professional/related] experience".
+        m = re.search(r'(\d+)\+?\s*(?:\(\s*\w+\s*\)\s*)?years?(?:\s+of)?\s+(?:relevant\s+|professional\s+|related\s+)?experience', desc_lower)
         if m:
             try:
                 years = int(m.group(1))
             except ValueError:
-                years = 0
-            if years > int(max_years):
-                reasons.append(f"Requires {years}+ years experience (over limit {int(max_years)})")
+                years = None
+        else:
+            # Fallback: "<N> years" ONLY when it sits in a requirement context —
+            # preceded by minimum/at least/requires, or followed closely by
+            # "experience". A bare "N years" anywhere is NOT a requirement
+            # (e.g. "For more than 25 years, organizations have turned to us").
+            req_ctx = re.compile(
+                r'(?:minimum(?:\s+of)?|at\s+least|requires?|required|qualifications?)\s*(?:of\s+)?(\d+)\+?\s*(?:years?|yrs?)'
+                r'|(\d+)\+?\s*(?:years?|yrs?)[^.\n]{0,100}?experience'
+            )
+            for cm in req_ctx.finditer(desc_lower):
+                val = cm.group(1) or cm.group(2)
+                if val:
+                    years = int(val)
+                    break
+        if years is not None and years > int(max_years):
+            reasons.append(f"Requires {years}+ years experience (over limit {int(max_years)})")
 
     # ── Text blockers gate ──
     for blocker in hc.get("text_blockers") or []:

@@ -20,6 +20,7 @@
       "_comment": "Map a client key to the display name used on the resume for that client engagement.",
       "employer_key": "Employer Display Name"
     },
+    "engagement_chronology": ["client_a", "client_b", "client_c"],
     "bad_keywords": [
       "Sole Proprietor",
       "Entrepreneur"

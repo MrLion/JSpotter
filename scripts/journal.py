@@ -634,7 +634,7 @@ def update_status(company, status, path=JOURNAL_PATH, title=None, location=None)
 def validate_journal_rows(ws):
     """Validate journal rows for data integrity. Returns list of error strings."""
     errors = []
-    valid_statuses = {"Not Applied", "Applied", "Interview", "Rejected", "Closed", "Withdrawn", None, ""}
+    valid_statuses = {"Not Applied", "Applied", "Phone Screen", "Interview", "Rejected", "Closed", "Withdrawn", None, ""}
     valid_priorities = {"High", "Medium", "Low", None, ""}
     
     for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=False), start=2):

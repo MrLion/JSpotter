@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here.
 
+## [0.16.0] - 2026-09-18
+
+### Added
+- **Engagement-chronology enforcement in `validate_tailoring.py` (check 5c)** — the "bullets grouped by engagement AND timeline-correct" rule had been documented for months but was never machine-checked, and nine resumes produced in a single session violated it (e.g. one leading with a 2023 engagement and burying the most recent one last; another placing two engagements out of order). Within the EPAM block the validator now reads the expected order from `config.json → candidate.engagement_chronology` (most-recent-first) and errors on (a) non-contiguous engagement groups and (b) any order that is not most-recent-first, printing the order found vs. expected. `templates/config.template.json` gains the matching key so a fresh clone is not silently unenforced.
+- **Triage classification: `closed`** — `email_triage.py` distinguishes a position-closed / position-filled email from both a confirmation and a rejection (new `CLOSED_PATTERNS`, checked before generic rejection). Output/counts include `closed`; the cron prompt emits "🗑 Position closed" and directs the journal status to **Closed**, deliberately separate from **Rejected** (Closed = req filled/withdrawn with no candidate-specific decision; Rejected = the company evaluated and declined).
+
+### Fixed
+- **Years-of-experience gate false positive in `hard_constraints.py`** — the gate's fallback regex matched any `"N years"` anywhere in the JD, so company-history boilerplate ("For more than 25 years, organizations have turned to us") was read as a 25-year requirement and the role was zeroed as SKIPPED. The fallback now only counts a figure that sits in a requirement context (after minimum/at least/requires, or tied to "experience"); the explicit `"<N> years of experience"` primary pattern is unchanged. Verified against seven cases — the false positive no longer fires and genuine 25/30-year requirements still gate correctly. The affected row was reset and re-scored (now match 92 / ATS 88).
+- **`journal.py` rejected `Phone Screen` as an invalid status** — the add-time validator's `valid_statuses` set omitted `Phone Screen` even though `STATUS_VALUES` includes it, so marking a row as Phone Screen produced a spurious validation warning. The set now matches `STATUS_VALUES`.
+
 ## [0.15.9] - 2026-09-03
 
 ### Added

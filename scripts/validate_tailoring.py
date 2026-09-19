@@ -38,6 +38,8 @@ _CANDIDATE = load_candidate_config()
 CAREER_ORDER = _CANDIDATE.get("career_order", [])
 CONFLATION_METRICS = _CANDIDATE.get("conflation_metrics", {})
 CLIENT_KEYWORDS = _CANDIDATE.get("client_keywords", {})
+ENGAGEMENT_CHRONOLOGY = _CANDIDATE.get("engagement_chronology", [])
+CLIENT_NAMES = _CANDIDATE.get("client_names_in_profile", {})
 BAD_KEYWORDS = _CANDIDATE.get("bad_keywords", ["Sole Proprietor", "Entrepreneur", "Agentic Trading", "Agentic Systems"])
 PANDERING = _CANDIDATE.get("pandering_phrases", ["directly relevant to", "well-suited for", "perfectly aligned", "ideal candidate"])
 
@@ -105,6 +107,53 @@ def validate_entry(entry, idx):
                     for client in mentioned_clients:
                         if client not in valid_sources:
                             errors.append(f'{company}: possible metric conflation — "{metric}" belongs to {valid_sources} but bullet mentions "{client}"')
+
+    # 5c. Engagement chronology within the EPAM block (Sep 2026).
+    #     Engagement groups must appear most-recent-first and sit together,
+    #     mirroring the master profile's reverse-chrono convention. The
+    #     expected order comes from config.json -> candidate.engagement_chronology
+    #     (generic script: no client names are hardcoded here).
+    #     Only applies to the EPAM block — client engagements exist nowhere else.
+    if ENGAGEMENT_CHRONOLOGY:
+        rank = {c: i for i, c in enumerate(ENGAGEMENT_CHRONOLOGY)}
+
+        def _client_of(text):
+            t = text.lower()
+            for client in ENGAGEMENT_CHRONOLOGY:
+                for kw in CLIENT_KEYWORDS.get(client, []):
+                    if kw in t:
+                        return client
+            return None
+
+        for h in highlights:
+            if 'epam' not in (h.get('header', '') or '').lower():
+                continue
+            seq = []  # (rank, client) in bullet order, deduped by consecutive group
+            for b in h.get('bullets', []):
+                c = _client_of(b)
+                if c is None:
+                    continue
+                if not seq or seq[-1][1] != c:
+                    seq.append((rank[c], c))
+            # a) every group must be contiguous (no interleaving/reappearance)
+            seen = set()
+            prev = None
+            for _, c in seq:
+                if c != prev:
+                    if c in seen:
+                        errors.append(
+                            f'{company}: engagement "{CLIENT_NAMES.get(c, c)}" appears in non-contiguous groups — '
+                            f'keep each engagement\'s bullets together')
+                    seen.add(c)
+                    prev = c
+            # b) groups must be ordered most-recent-first
+            ranks = [r for r, _ in seq]
+            if ranks != sorted(ranks):
+                ordered = ' → '.join(CLIENT_NAMES.get(c, c) for _, c in seq)
+                expected = ' → '.join(
+                    CLIENT_NAMES.get(c, c) for c in sorted([x for _, x in seq], key=lambda x: rank[x]))
+                errors.append(
+                    f'{company}: EPAM engagement order not most-recent-first — got {ordered}; expected {expected}')
     
     # 6. Bullets 25-35 words (formula: verb + product + scope + result + method)
     #    Education/bridge entries (e.g. "Master of Science ... Clark University") are exempt
