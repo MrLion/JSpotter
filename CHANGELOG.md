@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here.
 
+## [0.16.1] - 2026-09-19
+
+### Changed
+- **EPAM bullets: engagement names woven into the sentence, no leading tags** — the "engagement-name tag" convention (`"Walgreens — …"`, `"GE Healthcare — …"`, etc.) is replaced by natural in-text integration (`"Migrated Cigna's Medicare Advantage systems …"`, `"… across COX Automotive's fleet management platform …"`, `"Launched an agentic contract parsing product at Google corporate-finance …"`). Tags read as mechanical labels and make the consulting framing conspicuous; natural weaving reads as ordinary resume prose while still identifying each engagement. Applies to the client-engagement block only. Rule 8 rewritten in `tailoring_prompt_template.md` (both local and `templates/` generic), with the matching rule in the `job-search-pipeline` skill and its `references/single-job-tailoring.md` / `references/resume-evidence-integrity.md` updated for coherence. Unchanged: the insertion is purely grammatical — bullet wording stays verbatim from the master profile, and the engagement name still counts toward the 25–35 word limit.
+
 ## [0.16.0] - 2026-09-18
 
 ### Added
