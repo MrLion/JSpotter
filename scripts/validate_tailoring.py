@@ -40,6 +40,9 @@ CONFLATION_METRICS = _CANDIDATE.get("conflation_metrics", {})
 CLIENT_KEYWORDS = _CANDIDATE.get("client_keywords", {})
 ENGAGEMENT_CHRONOLOGY = _CANDIDATE.get("engagement_chronology", [])
 CLIENT_NAMES = _CANDIDATE.get("client_names_in_profile", {})
+# Optional: phrases that are verbatim JD grafts (not the candidate's own labels).
+# Keep generic / empty-safe — only flags when populated.
+JD_GRAFT_PHRASES = [p.lower() for p in _CANDIDATE.get("jd_graft_phrases", [])]
 BAD_KEYWORDS = _CANDIDATE.get("bad_keywords", ["Sole Proprietor", "Entrepreneur", "Agentic Trading", "Agentic Systems"])
 PANDERING = _CANDIDATE.get("pandering_phrases", ["directly relevant to", "well-suited for", "perfectly aligned", "ideal candidate"])
 
@@ -91,7 +94,7 @@ def validate_entry(entry, idx):
         for b in h.get('bullets', []):
             if CLIENT_PREFIX_RE.match(b):
                 errors.append(f'{company}: client-name prefix in bullet — "{b[:50]}"')
-    
+
     # 5b. Conflation detection — using config-driven metrics
     for h in highlights:
         for b in h.get('bullets', []):
@@ -155,6 +158,39 @@ def validate_entry(entry, idx):
                 errors.append(
                     f'{company}: EPAM engagement order not most-recent-first — got {ordered}; expected {expected}')
     
+    # 5d. Numeric-integrity check — flag mangled/zero/empty dollar figures.
+    #     Catches corruptions like "$30M" -> "0M" or "$M" (subagent edit dropping the value).
+    #     NOTE: deliberately does NOT whitelist against conflation_metrics, which is
+    #     engagement-scoped and not exhaustive — valid figures like $5M/$22M (Infinnity)
+    #     and $2M (Sole IT) must not be flagged. Only structural corruption is caught.
+    summary = entry.get('tailored_summary', '')
+    body_text = summary + ' ' + ' '.join(
+        b for h in highlights for b in h.get('bullets', [])
+    )
+    for m in re.finditer(r'\$0\b|\b0M\b|\$M\b|\$\s*0M\b', body_text, re.I):
+        errors.append(f'{company}: numeric corruption — "{m.group(0)}" (zero/empty dollar figure)')
+
+    # 5e. Career header dates must match config career_order canonical ranges.
+    if CAREER_ORDER:
+        # build map from any career keyword -> canonical dates
+        canon = {}
+        for c in CAREER_ORDER:
+            for k in c.get("keywords", []):
+                canon[k.lower()] = c.get("dates", "")
+        for h in highlights:
+            header = h.get('header', '')
+            # normalize dashes/spaces to compare against canonical "(Sep 2020–May 2026)"
+            norm = ' '.join(header.split()).replace('—','–').replace('-','–')
+            for kw, dates in canon.items():
+                if kw.lower() not in header.lower():
+                    continue
+                if not dates:
+                    continue
+                # strip the leading/trailing parens to search the span
+                span = dates.strip('()')
+                if span and span.lower() not in norm.lower():
+                    errors.append(f'{company}: header dates "{header[-20:]}" do not match canonical "{dates}"')
+
     # 6. Bullets 25-35 words (formula: verb + product + scope + result + method)
     #    Education/bridge entries (e.g. "Master of Science ... Clark University") are exempt
     #    from the MINIMUM — rule 2b requires them to be ONE factual bullet.
@@ -174,6 +210,11 @@ def validate_entry(entry, idx):
         word_count = len(s.split())
         if word_count > 4:
             errors.append(f'{company}: strength label exceeds 4 words ({word_count}) — "{s}"')
+        if JD_GRAFT_PHRASES:
+            sl = s.lower()
+            for phrase in JD_GRAFT_PHRASES:
+                if phrase in sl:
+                    errors.append(f'{company}: strength uses JD-graft phrase — "{s}" (contains "{phrase}")')
     
     # 8. Summary ≤ 4 sentences (Sep 2026: user set 3-4; was ≤3)
     summary = entry.get('tailored_summary', '')
@@ -216,6 +257,8 @@ def validate_entry(entry, idx):
                 if '**' in key or '**' in str(val):
                     errors.append(f'{company}: markdown asterisks in tools — "{key}"')
     
+    # Semantic gate names live in generate_pdf.main (`_SEMANTIC_ERROR_MARKERS`), which is
+    # the only place that decides PDF-or-no-PDF. This list is a local reminder, not logic.
     return errors
 
 

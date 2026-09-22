@@ -10,6 +10,8 @@ Usage:
 
 import json
 import sys
+import subprocess
+import shutil
 from pathlib import Path
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -355,10 +357,14 @@ def main():
         data = [data]
 
     # Validate and auto-fix before generating PDFs
+    # sep 2026 fix C: these markers in a validator error mean the entry is a content-level
+    # drift (numeric corruption, header-date mismatch, JD graft) — generate NO PDF for it.
+    _SEMANTIC_ERROR_MARKERS = ('suspicious numeric', 'header dates', 'JD-graft')
     if not skip_validation:
         from validate_tailoring import validate_entry, validate_and_fix
         fixed_count = 0
         error_count = 0
+        _fatal_idx = set()
         for idx, entry in enumerate(data):
             entry, changes = validate_and_fix(entry)
             if changes:
@@ -368,18 +374,26 @@ def main():
                 error_count += 1
                 for e in errors:
                     print(f"  ⚠ {e}")
-        
+                if any(m in e for m in _SEMANTIC_ERROR_MARKERS for e in errors):
+                    _fatal_idx.add(idx)
+
         if fixed_count > 0:
             # Save fixed data
             with open(filepath_arg, 'w') as f:
                 json.dump(data, f, indent=2)
             print(f"Auto-fixed: {fixed_count} entries (order/bad entries)")
-        
+
         if error_count > 0:
             print(f"Validation warnings: {error_count} entries have issues (pandering, length, etc.)")
             print("PDFs will still be generated. Review warnings above.")
         else:
             print("Validation passed: all entries clean.")
+
+        # drop entries that failed the semantic gate entirely — generate nothing for them
+        if _fatal_idx:
+            data = [e for i, e in enumerate(data) if i not in _fatal_idx]
+            if not data:
+                sys.exit('All entries failed the semantic gate; no PDFs generated.')
 
     for item in data:
         company = item.get('company', 'Unknown')
@@ -467,8 +481,14 @@ def main():
                 notes += f"\nRegenerate Feedback: {review.get('regenerate_feedback', '')}\n"
             notes_path.write_text(notes)
             
-            # Clean up JSON review file — only keep txt notes
-            review_path.unlink()
+            # Move review JSON into the canonical collection dir (sep 2026 fix D)
+            # instead of deleting it — review JSONs are the source of truth for "did it pass".
+            reviews_dir = OUTPUT_DIR / "reviews"
+            reviews_dir.mkdir(exist_ok=True)
+            try:
+                review_path.replace(reviews_dir / review_path.name)
+            except Exception:
+                pass
             
             if hr_score < 70 or hm_score < 70:
                 print(f'  ⚠ {company} (tech={qscore} HR={hr_score} HM={hm_score}) — review below threshold, PDF generated with notes')
@@ -491,12 +511,63 @@ def main():
         generate_pdf(item, outpath)
         # Save cover letter as PDF
         cover = item.get('cover_letter', '')
+        cl_path = None
         if cover:
             cl_path = OUTPUT_DIR / f"{name_prefix}{safe_co}_{safe_ti}{version_suffix}_cover_letter.pdf"
             generate_cover_letter_pdf(item, cl_path)
             print(f"    Generated: {outpath.name} + cover letter PDF")
         else:
             print(f"    Generated: {outpath.name}")
+
+        # sep 2026 fix B: ats_keywords_injected is a claim about what shipped.
+        claimed = [k for k in item.get('ats_keywords_injected', []) if k and str(k).strip()]
+        if claimed:
+            pdf_txt = ""
+            if shutil.which('pdftotext'):
+                r = subprocess.run(
+                    ['pdftotext', '-layout', str(outpath), '-'],
+                    capture_output=True, text=True, timeout=30)
+                if r.returncode == 0:
+                    pdf_txt = r.stdout
+            if pdf_txt:
+                low = pdf_txt.lower()
+                missing = [k for k in claimed if k.lower() not in low]
+                if missing:
+                    frac = len(missing) / len(claimed)
+                    sev = "⛔" if frac >= 0.5 else "⚠"
+                    print(f"    {sev} ATS keyword claim vs shipped PDF: {len(missing)}/{len(claimed)} "
+                          f"claimed keyword(s) NOT present in {outpath.name}: {missing}")
+                    if frac >= 0.5:
+                        try: outpath.unlink()
+                        except Exception: pass
+                        if cl_path is not None:
+                            try: cl_path.unlink()
+                            except Exception: pass
+                        sys.exit(f'ATS keyword inflation: {len(missing)}/{len(claimed)} claimed keywords missing from the shipped PDF.')
+
+                # sep 2026 fix A: score the SHIPPED document, not the master profile.
+                # run_scoring.py scores the journal row against master profile + JD; after
+                # tailoring the PDF is the real artifact, and its fit can drift from the
+                # journal's Gate-1 number. Recompute match/ATS on the shipped text and
+                # surface the drift so a stale journal score isn't presented as real.
+                desc = ''
+                try:
+                    with open(BASE_DIR / 'output' / 'descriptions_cache.json') as _dc:
+                        desc = json.load(_dc).get(item.get('url', ''), '')
+                except Exception:
+                    desc = ''
+                if desc and pdf_txt:
+                    sys.path.insert(0, str(BASE_DIR / 'scripts'))
+                    from match_score import calculate_match_score
+                    from ats_score import calculate_ats_score
+                    job_stub = {'title': title, 'location': item.get('location', '')}
+                    m2, _ = calculate_match_score(job_stub, desc, pdf_txt)
+                    a2, _ = calculate_ats_score(desc, pdf_txt)
+                    # journal's stored Gate-1 numbers come from run_scoring on the master profile
+                    print(f"    ↩ shipped-doc Gate-1: match={m2} ats={a2} (journal row scores the master profile, not this PDF)")
+            else:
+                print(f"    ⚠ could not read {outpath.name} back for ATS keyword verification (pdftotext unavailable or failed) — claim NOT verified")
+
 
 
 if __name__ == "__main__":
