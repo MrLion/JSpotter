@@ -44,6 +44,9 @@ _SALARY_PATTERNS = [
     # $150,000 | $150,000–$180,000 | $150k - $180k
     r'\$\s?(\d{2,3}(?:,\d{3})?)\s*(?:[-–—]\s*\$?\s?(\d{2,3}(?:,\d{3})?))?',
     r'\$\s?(\d{2,3})\s?k\b\s*(?:[-–—]\s*\$?\s?(\d{2,3})\s?k)?',
+    # Shared-symbol range: "$180-220k", "$180k-220k", "$180,000-220,000"
+    # (one leading $ and/or one trailing k covering both figures — very common in JDs)
+    r'\$\s?(\d{2,3}(?:,\d{3})?)\s?k?\s*[-–—]\s*\$?\s?(\d{2,3}(?:,\d{3})?)\s?k\b',
 ]
 
 # Fallback defaults — overridden by config.json → hard_constraints

@@ -18,14 +18,20 @@ OUTPUT_DIR = Path(__file__).parent.parent / "resume" / "tailored"
 
 
 def build_review_prompt(resume_json, job_desc):
-    """Build the review prompt for a single resume."""
+    """Build the review prompt for a single resume.
+
+    Neither document is truncated: a slice here silently drops whatever sorts last
+    (the cover letter and the tail of the tools block), and the reviewer then scores
+    or discusses content it was never shown. Resume JSON runs ~12K chars; the JD is
+    capped generously for model context.
+    """
     return f"""You are reviewing a tailored resume for quality. Act as two reviewers: an HR recruiter and a hiring manager.
 
 ## RESUME JSON
-{json.dumps(resume_json, indent=2)[:8000]}
+{json.dumps(resume_json, indent=2)}
 
 ## JOB DESCRIPTION
-{job_desc[:3000]}
+{job_desc[:12000]}
 
 ## INSTRUCTIONS
 

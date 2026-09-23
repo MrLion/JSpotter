@@ -119,8 +119,15 @@ strength_style = ParagraphStyle('Strength', parent=styles['Normal'],
 
 
 def clean(text):
-    """Clean text for ReportLab — replace problematic unicode."""
-    return text.replace('\u2014', '\u2014').replace('\u2013', '\u2013').replace('\u2019', "'")
+    """Clean text for ReportLab — replace problematic unicode and escape XML.
+
+    ReportLab's Paragraph parses XML-ish markup, so a bare '&' is invalid and gets
+    mangled when followed by a letter (e.g. "S&P 500" renders as "S&P; 500").
+    Escape '&' before any other substitution; source data carries no intentional
+    entities, so all ampersands are literal text.
+    """
+    return (text.replace('&', '&amp;')
+                .replace('\u2014', '\u2014').replace('\u2013', '\u2013').replace('\u2019', "'"))
 
 
 def generate_pdf(data, filepath):
@@ -211,8 +218,10 @@ def generate_pdf(data, filepath):
             intro_style = ParagraphStyle('Intro', parent=body_style,
                 fontName='Helvetica-Oblique', fontSize=9.5, textColor=GRAY, spaceAfter=3, leading=12)
             story.append(Paragraph(clean(entry['intro']), intro_style))
-        bullet_items = [ListItem(Paragraph(clean(b), bullet_style), leftIndent=14, value='\u2013') for b in entry['bullets']]
-        story.append(ListFlowable(bullet_items, bulletType='bullet', start='\u2013', leftIndent=6))
+        bullets = entry.get('bullets', [])
+        if bullets:
+            bullet_items = [ListItem(Paragraph(clean(b), bullet_style), leftIndent=14, value='\u2013') for b in bullets]
+            story.append(ListFlowable(bullet_items, bulletType='bullet', start='\u2013', leftIndent=6))
         story.append(Spacer(1, T_LAYOUT["spacer_between_jobs"]))
 
     # Education — read from theme.json
