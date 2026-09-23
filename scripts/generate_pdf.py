@@ -368,7 +368,7 @@ def main():
     # Validate and auto-fix before generating PDFs
     # sep 2026 fix C: these markers in a validator error mean the entry is a content-level
     # drift (numeric corruption, header-date mismatch, JD graft) — generate NO PDF for it.
-    _SEMANTIC_ERROR_MARKERS = ('suspicious numeric', 'header dates', 'JD-graft')
+    _SEMANTIC_ERROR_MARKERS = ('numeric corruption', 'header dates', 'JD-graft')
     if not skip_validation:
         from validate_tailoring import validate_entry, validate_and_fix
         fixed_count = 0
@@ -393,8 +393,11 @@ def main():
             print(f"Auto-fixed: {fixed_count} entries (order/bad entries)")
 
         if error_count > 0:
-            print(f"Validation warnings: {error_count} entries have issues (pandering, length, etc.)")
-            print("PDFs will still be generated. Review warnings above.")
+            if _fatal_idx:
+                print(f"Semantic gate failed: {_fatal_idx and len(_fatal_idx)} entr{'y' if len(_fatal_idx)==1 else 'ies'} blocked — no PDF generated for them.")
+            else:
+                print(f"Validation warnings: {error_count} entries have issues (pandering, length, etc.)")
+                print("PDFs will still be generated. Review warnings above.")
         else:
             print("Validation passed: all entries clean.")
 
@@ -539,8 +542,13 @@ def main():
                 if r.returncode == 0:
                     pdf_txt = r.stdout
             if pdf_txt:
-                low = pdf_txt.lower()
-                missing = [k for k in claimed if k.lower() not in low]
+                # Normalize whitespace before matching: pdftotext wraps long lines, so a
+                # multi-word keyword can land across a line break ("Prompt\nEngineering")
+                # and a raw substring test reads it as absent. Wrapping is a layout artifact,
+                # not a missing claim — and the ⛔ branch below deletes the PDF, so a false
+                # positive here silently destroys a valid document.
+                low = re.sub(r'\s+', ' ', pdf_txt).lower()
+                missing = [k for k in claimed if re.sub(r'\s+', ' ', k).lower() not in low]
                 if missing:
                     frac = len(missing) / len(claimed)
                     sev = "⛔" if frac >= 0.5 else "⚠"
