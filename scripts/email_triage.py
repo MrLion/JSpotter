@@ -38,7 +38,7 @@ Configuration (env vars, all optional with defaults):
   EMJ_ACCOUNTS     — comma-separated himalaya accounts to scan
                      (default: icloud,gmail)
   EMJ_MAILBOX      — himalaya mailbox to scan per account (default: Inbox)
-  EMJ_WINDOW_DAYS  — look back window in days (default: 3)
+  EMJ_WINDOW_DAYS  — look back window in days (default: 7)
   HIMALAYA_CMD     — himalaya binary name/path (default: himalaya)
 
 Each candidate is tagged with its "account" (e.g. "icloud" or "gmail") so a
