@@ -15,6 +15,7 @@ Output shape (one JSON object):
     "total_scanned": M,
     "counts": {"rejection": n, "closed": n, "interview": n,
                "confirmation": n, "referral": n, "other": n},
+    "unclassified": {"count": n, "ids": ["account:id", ...]},
     "new_candidates": [
       {"id": 23084, "date": ..., "from": ..., "subject": ...,
        "snippet": "...", "type": "rejection"}
@@ -72,7 +73,7 @@ STATE_FILE = os.environ.get("EMJ_STATE", _default_state_file())
 STATE_DIR = os.path.dirname(STATE_FILE)
 ACCOUNTS = [a.strip() for a in os.environ.get("EMJ_ACCOUNTS", "icloud,gmail").split(",") if a.strip()]
 MAILBOX = os.environ.get("EMJ_MAILBOX", "Inbox")
-WINDOW_DAYS = int(os.environ.get("EMJ_WINDOW_DAYS", "3"))
+WINDOW_DAYS = int(os.environ.get("EMJ_WINDOW_DAYS", "7"))
 HIMALAYA = os.environ.get("HIMALAYA_CMD", "himalaya")
 
 # --- Classification signals (matched against subject + body, lowercased) ----
@@ -201,6 +202,27 @@ NON_EMPLOYER = [
     "fundstrat", "malibu invest", "one knight in product", "john cutler",
     "nick gerli", "rosco", "tom lee",
     "rsm - shrewsbury", "rsm shrewsbury", "capital one",
+]
+
+# Unclassified-telemetry scope (commit 6459f9e follow-up): which
+# unclassified emails are worth surfacing. Recruiter chatter, cold
+# outreach, and marketing don't track — a rejection-shaped email does.
+# An unacked, in-window email is counted ONLY if its subject reads
+# application-ish OR its sender is a known ATS domain. Keeps the
+# counter at "possible decisions", not "everything unclassified".
+UNCLASSIFIED_SUBJECT_PATTERNS = [
+    r"application",
+    r"position",
+    r"candidacy",
+    r"\brole\b",
+    r"opportunit",
+    r"\bnext step",
+]
+UNCLASSIFIED_SENDER_PATTERNS = [
+    r"myworkday", r"workdayjobs", r"greenhouse", r"ashbyhq", r"lever\.",
+    r"rippling", r"icims", r"smartrecruiters", r"jobvite",
+    r"successfactors", r"governmentjobs", r"\badp\b", r"ceipal",
+    r"phenom", r"\bjobvite\b",
 ]
 
 
@@ -333,6 +355,7 @@ def main():
     now = datetime.now(timezone.utc)
     candidates = []
     total_scanned = 0
+    unclassified = []
 
     for account in ACCOUNTS:
         envelopes = get_envelopes(account)
@@ -371,6 +394,18 @@ def main():
                     "snippet": body[:200],
                     "type": etype,
                 })
+            else:
+                # In-window, unacked, employer-ish email that matched NO
+                # pattern. Track it as telemetry ONLY when it looks like a
+                # decision email (application-ish subject or known ATS
+                # sender) — recruiter chatter and cold outreach are not
+                # tracked, keeping the counter actionable.
+                track = (
+                    any(re.search(p, subject.lower()) for p in UNCLASSIFIED_SUBJECT_PATTERNS)
+                    or any(re.search(p, frm_l) for p in UNCLASSIFIED_SENDER_PATTERNS)
+                )
+                if track:
+                    unclassified.append(key)
 
     # Report all un-seen candidates as NEW (pending delivery). They are NOT
     # auto-marked as seen here — a run that detects them but fails to deliver
@@ -386,6 +421,7 @@ def main():
         "accounts": ACCOUNTS,
         "total_scanned": total_scanned,
         "counts": dict(counts),
+        "unclassified": {"count": len(unclassified), "ids": unclassified},
         "new_candidates": new_candidates,
         "all_candidate_ids": [f"{c['account']}:{c['id']}" for c in candidates],
     }
