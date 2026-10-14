@@ -97,10 +97,22 @@ REJECT_PATTERNS = [
 ]
 
 # Stronger rejection signals; "unfortunately" alone is weak.
+# The rejection gate (classify) only accepts a REJECT match when the email
+# also carries an "unfortunately" softener OR one of these STRONG signals.
+# This list must therefore carry the explicit candidate-decision phrasings
+# that recruiters use in matter-of-fact relayed rejections — those emails
+# have no softener, and if they sit here as weak REJECT patterns only, they
+# silently fall through to confirmation ("thank you for applying" line).
+# Real case: MBTA "they will not be moving you forward in the process"
+# classified as confirmation on 2026-09-16 and was never surfaced.
 STRONG_PATTERNS = [
     r"not moving forward",
     r"unable to offer",
     r"will not be moving forward",
+    r"not be moving you forward",
+    r"decided to (?:go|move) in a different direction",
+    r"decided to move forward with (?:other|different) candidates",
+    r"passing on your (?:candidacy|application|profile)",
     r"no longer recruiting",
     r"no longer under consideration",
     r"we regret to inform",
@@ -250,18 +262,28 @@ def classify(subject, body):
     haystack = (subject + " " + body).lower()
     subject_l = subject.lower()
 
-    # Rejection first (strong signal wins over a "thank you" confirmation).
-    strong = any(re.search(p, haystack) for p in STRONG_PATTERNS)
-    any_reject = any(re.search(p, haystack) for p in REJECT_PATTERNS)
-
     # Position-closed / withdrawn — the req itself was closed, not the
     # candidate declined. Distinct terminal state (journal keeps Closed and
-    # Rejected separate). Check before generic rejection.
+    # Rejected separate). Check BEFORE the rejection gate: Aledade-style
+    # emails contain BOTH strong-reject phrasing ("will not be moving
+    # forward with interviews") and closed phrasing ("position is now
+    # closed") — the closed phrases must win.
     # "Thank you for your interest" + "position is now closed" → closed.
     if any(re.search(p, haystack) for p in CLOSED_PATTERNS):
         return "closed"
 
-    if any_reject and ("unfortunately" not in haystack or strong):
+    # Rejection first (strong signal wins over a "thank you" confirmation).
+    # Semantics: an explicit candidate-decision phrase (STRONG) rejects on
+    # its own. Weak REJECT phrases (e.g. "is no longer available" — which
+    # appears in benign contexts) need corroboration: an "unfortunately"
+    # softener, a STRONG match, or a second weak phrase match. Do NOT gate
+    # strong signals behind a weak match: MBTA's "will not be moving you
+    # forward" (relayed by the recruiter, no "unfortunately") fell through
+    # to confirmation on 2026-09-16 under the old gate.
+    strong_matches = [p for p in STRONG_PATTERNS if re.search(p, haystack)]
+    weak_matches = [p for p in REJECT_PATTERNS if re.search(p, haystack)]
+    strong = bool(strong_matches)
+    if strong or len(weak_matches) >= 2 or (weak_matches and "unfortunately" in haystack):
         return "rejection"
 
     # Strong scheduling / recruiter-call signal — an actual request to meet
