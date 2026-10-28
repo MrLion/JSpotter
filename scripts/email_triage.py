@@ -117,6 +117,13 @@ STRONG_PATTERNS = [
     r"no longer recruiting",
     r"no longer under consideration",
     r"we regret to inform",
+    # Same-day ATS auto-rejection phrasing. Subject line is usually
+    # "Thank you for your interest in <company>!" — i.e. it reads like a
+    # confirmation — while the body is a rejection. Both phrases are
+    # unambiguous candidate decisions, so they reject alone.
+    r"identified candidates that are a (?:closer|better) match",
+    r"a closer match to our needs",
+    r"candidates that are a (?:closer|better) fit",
 ]
 
 # Position-closed / withdrawn signals — the REQ was closed (filled or pulled)
@@ -171,6 +178,23 @@ STRONG_INTERVIEW_PATTERNS = [
     r"(?:pick|select|choose) a (?:time slot|slot|day and time|time that works)",
     r"select the day and time",
     r"receive a calendar invite",
+    # A booked interview stated without the word "interview" in the subject,
+    # and the bare calendar/video invites that follow it (Teams/Zoom/Meet links
+    # carry no other scheduling language). Real case: a recruiter wrote
+    # "Your interview with <client> is confirmed for Friday, 10/30 1:00 PM-1:30 PM"
+    # in a reply thread whose subject was the original outreach line — it
+    # classified as None and was never surfaced, while the client's Teams
+    # invite also went undelivered.
+    r"interview(?: with [^.]{0,60})? (?:is|has been) confirmed",
+    r"confirmed for (?:mon|tues|wednes|thurs|fri|satur|sun)day",
+    r"(?:sent|sending|send) you the (?:video|calendar|teams) invite",
+    r"\bvideo invite\b",
+    r"microsoft teams meeting",
+    r"teams\.microsoft\.com/meet",
+    r"zoom\.us/(?:j|my|s)/",
+    r"meet\.google\.com/",
+    r"meeting id:\s*[\d ]{9,}",
+    r"dial in by phone",
 ]
 
 # Application received / under review (not a decision).
