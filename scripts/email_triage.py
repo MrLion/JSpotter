@@ -158,6 +158,19 @@ STRONG_INTERVIEW_PATTERNS = [
     r"availability.{0,15}(?:call|interview|screen|meet)",
     r"set up.{0,15}(?:call|interview|screen|meet|time)",
     r"book.{0,15}(?:call|interview|screen|meet|time)",
+    # Invites phrased without the word "interview" (Zeitview-style: a recruiter
+    # offering "next steps" + a short call + a self-serve scheduling link).
+    # These would otherwise fall through to the "received your application"
+    # confirmation branch even though they are an explicit request to meet.
+    # Negation-guarded: a rejection saying "not moving you forward" must never
+    # match, and the rejection gate runs before this block anyway.
+    r"(?<!not )(?<!unable to )move you forward to the next step",
+    r"(?:love|happy|pleased|excited|glad) to (?:move|advance) you (?:forward )?to the next step",
+    r"\b\d{1,3}[ -]minute (?:phone|video|virtual|introductory|screening) (?:call|conversation|screen|interview)",
+    r"\b\d{1,3}[ -]min(?:ute)?s?[ -](?:phone|video|virtual|introductory) (?:call|conversation)",
+    r"(?:pick|select|choose) a (?:time slot|slot|day and time|time that works)",
+    r"select the day and time",
+    r"receive a calendar invite",
 ]
 
 # Application received / under review (not a decision).
