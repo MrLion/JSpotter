@@ -189,12 +189,34 @@ STRONG_INTERVIEW_PATTERNS = [
     r"confirmed for (?:mon|tues|wednes|thurs|fri|satur|sun)day",
     r"(?:sent|sending|send) you the (?:video|calendar|teams) invite",
     r"\bvideo invite\b",
+]
+
+# Bare meeting artifacts (join URL / meeting id / dial-in). These appear in ANY
+# calendar invite — including a friend's Google Meet invitation — so they are
+# only treated as an interview when the same email carries recruiting context.
+# Real false positive: a personal "Invitation: Hello @ Sat Oct 24" Google Meet
+# event classified as an interview before this gate existed.
+MEETING_INVITE_PATTERNS = [
     r"microsoft teams meeting",
     r"teams\.microsoft\.com/meet",
     r"zoom\.us/(?:j|my|s)/",
     r"meet\.google\.com/",
     r"meeting id:\s*[\d ]{9,}",
     r"dial in by phone",
+]
+
+# Recruiting context that licenses a meeting artifact to count as an interview.
+RECRUITING_CONTEXT_PATTERNS = [
+    r"\binterview",
+    r"\brecruit",
+    r"\bhiring\b",
+    r"\btalent\b",
+    r"\bcandidate\b",
+    r"\bapplication\b",
+    r"\bresume\b",
+    r"\breq[ :#]?\s?\d{2,}",
+    r"\bproduct manager\b",
+    r"\bjob\b",
 ]
 
 # Application received / under review (not a decision).
@@ -306,6 +328,11 @@ def get_message_body(account, mid):
     return text.lower()
 
 
+def _any_match(patterns, haystack):
+    """True when any regex in ``patterns`` matches ``haystack``."""
+    return any(re.search(p, haystack) for p in patterns)
+
+
 def classify(subject, body):
     """Return a classification string, or None for unclassified.
 
@@ -348,6 +375,15 @@ def classify(subject, body):
     # Strong scheduling / recruiter-call signal — an actual request to meet
     # overrides a generic "thank you for applying" confirmation line.
     if any(re.search(p, haystack) for p in STRONG_INTERVIEW_PATTERNS):
+        return "interview"
+
+    # A bare meeting invite (join URL / meeting id / dial-in) counts only when
+    # the same email reads as recruiting — otherwise every personal calendar
+    # invite would surface as an interview.
+    if (
+        _any_match(MEETING_INVITE_PATTERNS, haystack)
+        and _any_match(RECRUITING_CONTEXT_PATTERNS, haystack)
+    ):
         return "interview"
 
     # Definitive application confirmation / under-review — before weak
