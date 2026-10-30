@@ -497,7 +497,7 @@ def remove_jobs(company=None, title=None, url=None, path=JOURNAL_PATH, all_medlo
     return removed
 
 
-def update_status(company, status, path=JOURNAL_PATH, title=None, location=None):
+def update_status(company, status, path=JOURNAL_PATH, title=None, location=None, dry_run=False):
     """Update job status and set Last Updated timestamp. Archives PDFs for Rejected/Closed.
     
     Args:
@@ -535,6 +535,9 @@ def update_status(company, status, path=JOURNAL_PATH, title=None, location=None)
                 continue
             if location and location.lower() not in row_location.lower():
                 continue
+            if dry_run:
+                updated.append(f"{row[0].row}:{row_company} — {row_title}")
+                continue
             ws.cell(row=row[0].row, column=JOBS_COL_INDEX["status"]).value = status
             ws.cell(row=row[0].row, column=JOBS_COL_INDEX["last_updated"]).value = today
             if status == 'Applied':
@@ -544,6 +547,9 @@ def update_status(company, status, path=JOURNAL_PATH, title=None, location=None)
                 if status == 'Applied':
                     row[JOBS_COL_INDEX["company"] - 1].font = Font(bold=True)
             updated.append(f'{row_company} — {row_title}')
+    
+    if dry_run:
+        return updated
     
     wb.save(str(path))
     
@@ -744,6 +750,7 @@ def main():
     parser.add_argument("--remove-all-medlow", action="store_true", help="Remove all Medium/Low priority, Not Applied jobs")
     parser.add_argument("--remove-stale-not-applied", type=int, metavar="DAYS", help="Remove Not Applied jobs whose Date Found is older than DAYS (with --remove); other statuses are preserved")
     parser.add_argument("--set-status", help="Set job status (Applied/Interview/Rejected/Closed/Withdrawn); match via --company/--title/--location")
+    parser.add_argument("--dry-run", action="store_true", help="With --set-status: report matching rows (MATCHES N [rows]) without writing")
     parser.add_argument("--location", help="Location filter to scope status updates (case-insensitive city substring)")
     parser.add_argument("--status", action="store_true", help="Show summary stats")
     parser.add_argument("--path", default=str(JOURNAL_PATH), help="Journal file path")
@@ -771,11 +778,17 @@ def main():
         if not args.company:
             print("ERROR: --company is required with --set-status")
             sys.exit(1)
-        updated = update_status(args.company, args.set_status, path=path, title=args.title, location=args.location)
+        updated = update_status(args.company, args.set_status, path=path, title=args.title, location=args.location, dry_run=args.dry_run)
         if updated:
-            print(f"Set {args.set_status} on {len(updated)} row(s):")
-            for u in updated:
-                print(f"  - {u}")
+            if args.dry_run:
+                rows = ", ".join(u.split(":", 1)[0] for u in updated)
+                print(f"MATCHES {len(updated)} [{rows}]")
+                for u in updated:
+                    print(f"  - {u.split(':', 1)[1]}")
+            else:
+                print(f"Set {args.set_status} on {len(updated)} row(s):")
+                for u in updated:
+                    print(f"  - {u}")
         else:
             print("No matching jobs found.")
     elif args.status:
